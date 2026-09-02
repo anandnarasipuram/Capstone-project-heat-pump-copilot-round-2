@@ -81,7 +81,7 @@ All five rows were unit-tested directly against the actual generated node code (
 - **Telegram only supplies free text** — `model`/`firmware_version`/`installer_type` default to placeholders; a production version would tag the chat with equipment context automatically (e.g. a QR scan at the unit).
 - **Manual grounding is keyword-based and English-first** — resolved in the MVP via multilingual embeddings + Pinecone (see [../mvp/mvp_documentation.md](../mvp/mvp_documentation.md)).
 - **Manual corpus is small and drawn from representative UK documentation, not Chleo's own product line** — see [../data/manuals/README.md](../data/manuals/README.md).
-- **LangSmith is a placeholder node** — the real Round 1 trace/eval evidence lives in [../langsmith/](../langsmith/) as a separate, smaller demonstration.
+- **LangSmith is a placeholder node here** — the real Round 1 trace/eval evidence lives in [../langsmith/](../langsmith/) as a separate, smaller demonstration. **Resolved in the MVP**: Round 2's app traces every interaction live and continuously (not a one-off script) — see [../mvp/mvp_documentation.md](../mvp/mvp_documentation.md), "Monitoring — LangSmith tracing."
 - **The fault-code lookup table is small** (13 codes) — production would load a full manufacturer fault-code database.
 - **No retry/rate-limit handling**, and the bot is only as secure as its Telegram token — expected of a POC, not a hardened endpoint.
 - **The classifier never issues autonomous repair instructions for hardware faults**, by design — a deliberate safety constraint, not a gap to close.

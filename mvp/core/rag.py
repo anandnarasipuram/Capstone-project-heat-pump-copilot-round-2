@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import os
 
+from .tracing import traceable
+
 DEFAULT_INDEX_NAME = "heat-pump-copilot-manuals"
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSION = 1536  # text-embedding-3-small's fixed output size
@@ -92,6 +94,7 @@ def is_configured() -> bool:
     )
 
 
+@traceable(name="retrieve_manual_context", tags=["heat-pump-copilot", "retrieval:pinecone"])
 def retrieve_manual_context(query: str, k: int = 3) -> tuple[list[str], list[str]]:
     """Returns (excerpts, sources) from semantic similarity search, or
     raises RagUnavailable — callers should catch it and fall back to

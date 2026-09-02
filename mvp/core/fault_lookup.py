@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from typing import Optional, TypedDict
 
+from .tracing import traceable
+
 FAULT_CODE_PATTERN = re.compile(r"\b(E\d{1,2}|CONN-\d{2}|F\.?\d{2,4})\b", re.IGNORECASE)
 
 
@@ -113,6 +115,7 @@ def lookup_fault_code(code: str) -> Optional[FaultLookupResult]:
     return KNOWN_CODES.get((code or "").strip().upper())
 
 
+@traceable(name="deterministic_lookup", tags=["heat-pump-copilot", "path:lookup"])
 def try_deterministic_classify(text: str) -> Optional[dict]:
     """Convenience: extract + lookup in one call. Returns a result dict
     shaped like the LLM path's output (category, message, confidence,

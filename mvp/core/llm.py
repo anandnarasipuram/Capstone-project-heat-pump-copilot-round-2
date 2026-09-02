@@ -13,12 +13,20 @@ default to 'no action needed'"). The returned dict always carries
 `ai_generated: bool` so app.py can show the user which mode produced
 the text on screen — a fallback is labeled as a fallback, never
 presented as if it were a real model response.
+
+Every call site is traced to LangSmith via core/tracing.py — each public
+function here is one inspectable trace (exact prompt sent, raw model
+output, latency, token usage), the Round 2 replacement for the POC's
+"Log to Monitoring (LangSmith)" placeholder node. See
+../mvp_documentation.md, "Monitoring / LangSmith tracing".
 """
 from __future__ import annotations
 
 import json
 import os
 from typing import Optional
+
+from .tracing import traceable, wrap_openai
 
 DEFAULT_CHAT_MODEL = "gpt-4o-mini"
 
@@ -53,7 +61,10 @@ def _get_client():
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
         raise LlmError("OPENAI_API_KEY is not set — see mvp/.env.example.")
-    return OpenAI(api_key=api_key)
+    # wrap_openai only actually traces when LangSmith tracing is enabled
+    # (see core/tracing.py) — with no LANGSMITH_API_KEY it wraps the
+    # client but makes no LangSmith network calls, so this is always safe.
+    return wrap_openai(OpenAI(api_key=api_key))
 
 
 def _chat_json(system_prompt: str, user_prompt: str) -> Optional[dict]:
@@ -84,6 +95,7 @@ def is_configured() -> bool:
     return bool(os.environ.get("OPENAI_API_KEY", "").strip())
 
 
+@traceable(name="classify_symptom", tags=["heat-pump-copilot", "mode:fault_triage"])
 def classify_symptom(symptom: str, manual_excerpts: list[str], manual_sources: list[str]) -> dict:
     context_block = (
         "\n".join(f"- {excerpt}" for excerpt in manual_excerpts)
@@ -115,6 +127,7 @@ def classify_symptom(symptom: str, manual_excerpts: list[str], manual_sources: l
     }
 
 
+@traceable(name="summarize_checklist", tags=["heat-pump-copilot", "mode:commissioning_checker"])
 def summarize_checklist(model: str, firmware: str, checklist_result: dict) -> dict:
     missing = ", ".join(
         f"{item['label']} (would otherwise surface as {item['manual_ref']})" if item["manual_ref"] else item["label"]
@@ -139,6 +152,7 @@ def summarize_checklist(model: str, firmware: str, checklist_result: dict) -> di
     return {"summary": summary, "ai_generated": False}
 
 
+@traceable(name="generate_predictive_alert", tags=["heat-pump-copilot", "mode:predictive_early_warning"])
 def generate_predictive_alert(profile_label: str, month_label: str, predictive_result: dict) -> dict:
     user_prompt = (
         f"Unit profile: {profile_label}\n"

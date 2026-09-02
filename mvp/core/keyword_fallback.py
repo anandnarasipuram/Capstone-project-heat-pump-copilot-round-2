@@ -14,8 +14,10 @@ whenever keys are available; this module exists purely as a safety net.
 from __future__ import annotations
 
 from . import data_loader
+from .tracing import traceable
 
 
+@traceable(name="keyword_fallback_retrieve", tags=["heat-pump-copilot", "retrieval:keyword_fallback"])
 def retrieve(text: str, k: int = 2) -> tuple[list[str], list[str]]:
     """Returns (excerpts, sources) for the top-k keyword-matching manual
     entries, or ([], []) if nothing matched."""

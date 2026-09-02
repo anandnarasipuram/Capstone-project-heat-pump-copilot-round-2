@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv()
 
-from core import checklist, data_loader, fault_lookup, keyword_fallback, llm, predictive, rag  # noqa: E402
+from core import checklist, data_loader, llm, pipeline, predictive, rag, tracing  # noqa: E402
 
 st.set_page_config(page_title="Heat Pump Copilot", page_icon="🔧", layout="wide")
 
@@ -47,20 +47,6 @@ CATEGORY_LABELS = {
 @st.cache_data(show_spinner=False)
 def cached_cop_baseline():
     return data_loader.load_cop_baseline()
-
-
-def get_manual_context(symptom: str) -> tuple[list[str], list[str], str]:
-    """Retrieval step for Mode 1. Prefers real Pinecone RAG; falls back to
-    the zero-dependency keyword matcher (ported from the POC) if Pinecone/
-    OpenAI aren't configured or the call fails — never crashes the chat."""
-    if rag.is_configured():
-        try:
-            excerpts, sources = rag.retrieve_manual_context(symptom)
-            return excerpts, sources, "Pinecone RAG (embeddings)"
-        except rag.RagUnavailable as exc:
-            st.session_state["last_rag_warning"] = str(exc)
-    excerpts, sources = keyword_fallback.retrieve(symptom)
-    return excerpts, sources, "keyword fallback"
 
 
 def render_assistant_card(result: dict) -> None:
@@ -92,17 +78,6 @@ def render_assistant_card(result: dict) -> None:
     st.caption("_AI-suggested triage — confirm before acting._")
 
 
-def classify_message(text: str) -> dict:
-    deterministic = fault_lookup.try_deterministic_classify(text)
-    if deterministic:
-        return deterministic
-
-    excerpts, sources, retrieval_mode = get_manual_context(text)
-    result = llm.classify_symptom(text, excerpts, sources)
-    result["retrieval_mode"] = retrieval_mode
-    return result
-
-
 # ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
@@ -118,8 +93,11 @@ st.sidebar.divider()
 st.sidebar.markdown("**Configuration status**")
 st.sidebar.markdown(f"{'🟢' if llm.is_configured() else '🔴'} OpenAI (classification)")
 st.sidebar.markdown(f"{'🟢' if rag.is_configured() else '🟡'} Pinecone RAG (falls back to keyword match)")
+st.sidebar.markdown(f"{'🟢' if tracing.is_configured() else '🟡'} LangSmith (tracing — optional)")
 if not llm.is_configured():
     st.sidebar.caption("Add OPENAI_API_KEY to mvp/.env for live AI responses — see mvp_documentation.md.")
+if not tracing.is_configured():
+    st.sidebar.caption("Add LANGSMITH_API_KEY to mvp/.env to trace every interaction — see mvp_documentation.md.")
 
 st.sidebar.divider()
 st.sidebar.caption(
@@ -161,7 +139,7 @@ if mode.startswith("🩺"):
         with st.chat_message("assistant"):
             try:
                 with st.spinner("Classifying…"):
-                    result = classify_message(prompt)
+                    result = pipeline.fault_triage_turn(prompt)
             except Exception as exc:  # noqa: BLE001 — last-resort guard so the chat never hard-crashes
                 st.error(f"Something went wrong processing that message: {exc}")
                 result = {
@@ -212,25 +190,26 @@ elif mode.startswith("✅"):
         submitted = st.form_submit_button("Evaluate")
 
     if submitted:
-        result = checklist.evaluate_checklist(responses)
-        col1, col2 = st.columns(2)
-        col1.metric("Completeness", f"{result['completeness_pct']}%")
-        col2.metric("Sign-off ready", "Yes" if result["sign_off_ready"] else "No")
-
-        if result["sign_off_ready"]:
-            st.success("All required steps confirmed. Ready to sign off.")
-        else:
-            st.error(f"{len(result['missing_required'])} required step(s) outstanding:")
-            for item in result["missing_required"]:
-                ref = f" — risks surfacing as **{item['manual_ref']}**" if item["manual_ref"] else ""
-                st.write(f"- {item['label']}{ref}")
-
         try:
-            with st.spinner("Generating sign-off summary…"):
-                summary = llm.summarize_checklist(model, firmware, result)
+            with st.spinner("Evaluating…"):
+                turn = pipeline.commissioning_turn(model, firmware, responses)
+            result, summary = turn["checklist"], turn["summary"]
         except Exception as exc:  # noqa: BLE001
-            st.error(f"Could not generate a summary: {exc}")
-            summary = None
+            st.error(f"Could not evaluate this checklist: {exc}")
+            result, summary = None, None
+
+        if result:
+            col1, col2 = st.columns(2)
+            col1.metric("Completeness", f"{result['completeness_pct']}%")
+            col2.metric("Sign-off ready", "Yes" if result["sign_off_ready"] else "No")
+
+            if result["sign_off_ready"]:
+                st.success("All required steps confirmed. Ready to sign off.")
+            else:
+                st.error(f"{len(result['missing_required'])} required step(s) outstanding:")
+                for item in result["missing_required"]:
+                    ref = f" — risks surfacing as **{item['manual_ref']}**" if item["manual_ref"] else ""
+                    st.write(f"- {item['label']}{ref}")
 
         if summary:
             st.info(summary["summary"])
@@ -271,22 +250,22 @@ else:
 
     if st.button("Evaluate reading"):
         expected = float(baseline.loc[month, profile])
-        result = predictive.evaluate_reading(expected_cop=expected, observed_cop=observed)
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Expected COP", result["expected_cop"])
-        col2.metric("Observed COP", result["observed_cop"])
-        col3.metric("Deviation", f"{result['deviation_pct']}%")
-        st.markdown(f"### {predictive.SEVERITY_LABELS[result['severity']]}")
-
         try:
-            with st.spinner("Generating early-warning note…"):
-                alert = llm.generate_predictive_alert(
-                    data_loader.PROFILE_LABELS[profile], calendar.month_name[month], result
+            with st.spinner("Evaluating…"):
+                turn = pipeline.predictive_turn(
+                    data_loader.PROFILE_LABELS[profile], calendar.month_name[month], expected, observed
                 )
+            result, alert = turn["prediction"], turn["alert"]
         except Exception as exc:  # noqa: BLE001
-            st.error(f"Could not generate a note: {exc}")
-            alert = None
+            st.error(f"Could not evaluate this reading: {exc}")
+            result, alert = None, None
+
+        if result:
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Expected COP", result["expected_cop"])
+            col2.metric("Observed COP", result["observed_cop"])
+            col3.metric("Deviation", f"{result['deviation_pct']}%")
+            st.markdown(f"### {predictive.SEVERITY_LABELS[result['severity']]}")
 
         if alert:
             st.info(alert["note"])

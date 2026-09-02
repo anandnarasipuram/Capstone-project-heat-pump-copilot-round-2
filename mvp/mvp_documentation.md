@@ -21,15 +21,17 @@ Modes 2 and 3 reuse the same OpenAI classification layer (`core/llm.py`) to turn
 
 ```
 mvp/
-├── app.py                    # Streamlit UI — 3 modes, chat + forms
+├── app.py                    # Streamlit UI — 3 modes, chat + forms; calls only core/pipeline.py
 ├── core/
+│   ├── pipeline.py            # orchestration + tracing boundary — one function per mode, see below
 │   ├── fault_lookup.py       # deterministic fault-code regex + table (ported 1:1 from the POC)
 │   ├── keyword_fallback.py   # zero-dependency retrieval fallback (ported 1:1 from the POC)
 │   ├── rag.py                 # Pinecone + OpenAI embeddings — the real RAG upgrade
 │   ├── llm.py                  # OpenAI classification/generation, shared by all 3 modes
 │   ├── checklist.py            # Mode 2 — pure evaluation logic
 │   ├── predictive.py           # Mode 3 — pure COP-deviation logic
-│   └── data_loader.py          # loads data/manuals/*.json + data/when2heat_DE_subset.csv
+│   ├── data_loader.py          # loads data/manuals/*.json + data/when2heat_DE_subset.csv
+│   └── tracing.py              # LangSmith setup — see "Monitoring" below
 ├── scripts/
 │   └── ingest_manuals.py     # one-time: embeds manuals, upserts into Pinecone
 ├── tests/
@@ -80,6 +82,38 @@ core/fault_lookup.py — regex-extract a fault code (E4, F532, F.9998, ...)
 - **Commissioning Checker** (`core/checklist.py`): a fixed list of commissioning steps, each citing the fault code it would otherwise surface as later (e.g. unchecked eBUS wiring → F.9998). Deterministic scoring decides sign-off readiness; `core/llm.py:summarize_checklist()` turns that into a short natural-language summary for the installer.
 - **COP-Drop Early-Warning** (`core/predictive.py`): aggregates the public [When2Heat Germany COP dataset](../data/dataset_documentation.md) into a monthly seasonal baseline per heat-pump profile, compares a reported reading against it, and flags `normal` / `watch` / `early_warning` by a stated percentage-deviation threshold (documented as an assumption pending real fleet data — see [../roi_risk_assessment.md](../roi_risk_assessment.md)). `core/llm.py:generate_predictive_alert()` narrates the finding.
 
+## Monitoring — LangSmith tracing (every interaction, not a placeholder)
+
+The POC's n8n workflow has a `Log to Monitoring (LangSmith)` node that's explicitly a **placeholder** (a NoOp — see [../poc/poc_documentation.md](../poc/poc_documentation.md)), and Round 1 shipped LangSmith evidence as a separate, small [trace-sample script](../langsmith/run_trace_sample.py) run by hand. The MVP wires real, continuous tracing into the app itself instead — every fault-triage, checklist, and predictive-alert interaction produces a live LangSmith trace, so the exact prompt sent, the raw model output, latency, and token usage are all inspectable later, not just during a demo. This is what makes it possible to pull up real usage data for a discussion with Chleo (or any pilot customer) after the fact, rather than only being able to describe what the system does.
+
+**Architecture — `core/pipeline.py` is the single tracing boundary.** `app.py` never calls `core/llm.py` or `core/rag.py` directly; it calls one of three `@traceable`-decorated orchestration functions (`fault_triage_turn`, `commissioning_turn`, `predictive_turn`), each covering one whole user interaction as a single parent trace, with the steps inside it (deterministic lookup, retrieval, classification, the underlying OpenAI call) nested as child spans — not three unrelated traces a reviewer has to manually stitch back together. `core/tracing.py` centralizes the setup (`langsmith`'s `traceable` decorator + `wrap_openai`) so every module imports it from one place.
+
+**Fails soft, same as everywhere else in this app:** with no `LANGSMITH_API_KEY`, `traceable` is a normal passthrough decorator and `wrap_openai` returns the client unwrapped — tracing is simply off, nothing else in the app changes behavior, and no error is raised. The sidebar shows a 🟢/🟡 status indicator for it, same pattern as the OpenAI/Pinecone indicators.
+
+**Confirmed live** (this was actually run, not just written): with `LANGSMITH_API_KEY` set, all three modes were exercised and verified in the LangSmith UI/API to produce exactly the nested structure designed above —
+
+```
+fault_triage_turn                         (root — one per chat message)
+├── deterministic_lookup                  (checked first, always)
+├── retrieve_manual_context               (only reached if no fault code matched)
+└── classify_symptom
+    └── ChatOpenAI                        (the actual OpenAI call — wrap_openai's span)
+
+commissioning_turn                        (root — one per checklist submission)
+└── summarize_checklist
+    └── ChatOpenAI
+
+predictive_turn                           (root — one per COP-reading evaluation)
+└── generate_predictive_alert
+    └── ChatOpenAI
+```
+
+A message resolved entirely by the deterministic fault-code lookup (e.g. `E4`) produces a root trace with **only** the `deterministic_lookup` child — no retrieval, no classification, no LLM call — confirming the free/instant path stays free and instant, and that "everything traced" doesn't mean "everything calls an LLM."
+
+**One real setup gotcha worth knowing** (the exact one Round 1's trace sample already hit — see [../langsmith/monitoring_notes.md](../langsmith/monitoring_notes.md)): a LangSmith workspace on the **EU region** returns `403 Forbidden` on every trace unless `LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com` is set explicitly in `.env` — the classification/summary/alert itself still succeeds either way (tracing failure never breaks the underlying feature), but no traces reach the LangSmith UI until this is set. Check this first if traces aren't showing up.
+
+**How to view traces:** open [smith.langchain.com](https://smith.langchain.com) (or the EU equivalent), select the project named by `LANGSMITH_PROJECT` (defaults to `heat-pump-copilot-round2`), and every interaction since `LANGSMITH_API_KEY` was set will be listed there, filterable by the `mode:*` tags each root trace carries.
+
 ## How to run it
 
 ```bash
@@ -103,6 +137,7 @@ Open the app, stay on 🩺 Fault Triage Copilot, and try `Low refrigerant pressu
    python scripts/ingest_manuals.py
    ```
 4. `streamlit run app.py` again. The sidebar's configuration status flips to 🟢 for both OpenAI and Pinecone. Try a free-text symptom with no fault code, e.g. `No comms from the outdoor unit, controller not responding`, to see live embeddings retrieval + grounded LLM classification.
+5. Optional: fill in `LANGSMITH_API_KEY` in `.env` to trace every interaction — see "Monitoring — LangSmith tracing" below for what gets captured and a real setup gotcha to check first.
 
 ### Confirmed live (this is not a theoretical pipeline)
 

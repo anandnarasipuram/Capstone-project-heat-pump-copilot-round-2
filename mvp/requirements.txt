@@ -14,5 +14,10 @@ langchain-openai>=0.2.0
 langchain-pinecone>=0.2.0
 pinecone>=5.0.0
 
+# Monitoring — traces every AI call (retrieval + all 3 LLM call sites) to
+# LangSmith. Import-safe with zero keys (tracing is simply off); see
+# core/tracing.py.
+langsmith>=0.1.140
+
 # Dev / testing (offline unit tests only — no API keys needed)
 pytest>=8.0
