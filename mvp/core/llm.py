@@ -49,6 +49,10 @@ PREDICTIVE_SYSTEM_PROMPT = """You are a predictive-maintenance assistant for a h
 Given a unit's observed coefficient-of-performance (COP) reading versus the expected seasonal baseline, write a short (2-3 sentence) plain-language early-warning note: what the deviation means, and the recommended next step (no action / monitor next reading / schedule an inspection).
 Respond ONLY as JSON: {"note": "..."}"""
 
+FLEET_SUMMARY_SYSTEM_PROMPT = """You are a service-planning assistant summarizing the health of an installed heat pump fleet for a non-technical business owner.
+Given counts of units by status (normal / watch / early_warning) and details of the units needing attention, write a short (2-4 sentence) plain-language executive summary: overall fleet health, how many units need attention now vs. soon, and the recommended next action. Be concrete about which units/models are most urgent if any are early_warning.
+Respond ONLY as JSON: {"summary": "..."}"""
+
 
 class LlmError(Exception):
     """Raised for a genuine configuration problem (no API key). Callers
@@ -175,3 +179,31 @@ def generate_predictive_alert(profile_label: str, month_label: str, predictive_r
         f"{predictive_result['observed_cop']} observed)."
     )
     return {"note": note, "ai_generated": False}
+
+
+@traceable(name="generate_fleet_summary", tags=["heat-pump-copilot", "mode:predictive_early_warning"])
+def generate_fleet_summary(counts: dict, flagged_units: list[dict]) -> dict:
+    units_desc = (
+        "\n".join(
+            f"- {u['unit_id']} ({u['model']}, {u['region']}): {u['deviation_pct']}% below baseline — {u['notes']}"
+            for u in flagged_units
+        )
+        or "none"
+    )
+    user_prompt = (
+        f"Fleet status counts: {counts['normal']} normal, {counts['watch']} watch, "
+        f"{counts['early_warning']} early warning.\n"
+        f"Units needing attention:\n{units_desc}"
+    )
+    parsed = _chat_json(FLEET_SUMMARY_SYSTEM_PROMPT, user_prompt)
+    if parsed and "summary" in parsed:
+        return {"summary": parsed["summary"], "ai_generated": True}
+
+    total = sum(counts.values())
+    needs_attention = counts["watch"] + counts["early_warning"]
+    summary = (
+        f"{counts['normal']} of {total} units are operating normally. {needs_attention} unit(s) show reduced "
+        f"efficiency ({counts['early_warning']} urgent, {counts['watch']} to monitor) — schedule inspections "
+        f"for the urgent units first."
+    )
+    return {"summary": summary, "ai_generated": False}

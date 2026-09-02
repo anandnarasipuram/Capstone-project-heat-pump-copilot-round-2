@@ -18,7 +18,7 @@ Sep 2025 – present     Sep 2026 (this package)       Oct 2026 – Jan 2027    
 n8n/Telegram workflow, keyword-based manual grounding, LangSmith trace sample, PowerBI/Tableau dashboard spec. See [poc/poc_documentation.md](poc/poc_documentation.md). No further action needed here — carried forward, not re-built.
 
 ### Phase 1 — MVP / Internal Validation (Round 2, complete)
-The Streamlit application in [mvp/](mvp/): real RAG (OpenAI embeddings + Pinecone), all three use-case modes functional, live LangSmith tracing of every interaction (not the POC's placeholder — see [mvp/mvp_documentation.md](mvp/mvp_documentation.md), "Monitoring"), 16 offline unit tests passing, graceful degradation with zero API keys. **This phase's job is to prove the capability works before any real installer sees it** — it is deliberately internal-only (Chleo's own team, synthetic/public data), not yet a pilot.
+The Streamlit application in [mvp/](mvp/): real RAG (OpenAI embeddings + Pinecone), all three use-case modes functional, live LangSmith tracing of every interaction (not the POC's placeholder — see [mvp/mvp_documentation.md](mvp/mvp_documentation.md), "Monitoring"), 20 offline unit tests passing, graceful degradation with zero API keys. **This phase's job is to prove the capability works before any real installer sees it** — it is deliberately internal-only (Chleo's own team, synthetic/public data), not yet a pilot.
 
 **Exit gate to Phase 2 (all required):**
 - [x] Internal team reproduces all POC-equivalent worked examples live against real OpenAI + Pinecone keys, traced end-to-end in LangSmith (not just the offline unit tests) — confirms the RAG pipeline and the monitoring layer together, not just the deterministic fallback

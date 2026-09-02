@@ -240,7 +240,7 @@ add_bullets(slide, Inches(0.7), Inches(2.3), Inches(5.7), Inches(4.2), [
     "Keyword match → OpenAI embeddings + Pinecone vector search (real RAG)",
     "Telegram-only → a single Streamlit app, all 3 modes, one command to run",
     "LangSmith placeholder → every interaction traced live, not a one-off script",
-    "16 offline unit tests — deterministic logic verified with zero API keys",
+    "20 offline unit tests — deterministic logic verified with zero API keys",
     "Fails soft everywhere: missing keys degrade to a labeled fallback, never a crash",
 ], size=14, gap=12)
 add_rect(slide, Inches(6.8), Inches(1.85), Inches(5.8), Inches(4.7), WHITE)

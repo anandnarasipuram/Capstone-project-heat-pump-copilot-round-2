@@ -60,3 +60,12 @@ def predictive_turn(profile_label: str, month_label: str, expected_cop: float, o
     result = predictive.evaluate_reading(expected_cop=expected_cop, observed_cop=observed_cop)
     alert = llm.generate_predictive_alert(profile_label, month_label, result)
     return {"prediction": result, "alert": alert}
+
+
+@traceable(name="fleet_overview_turn", tags=["heat-pump-copilot", "mode:predictive_early_warning"])
+def fleet_overview_turn(counts: dict, flagged_units: list[dict]) -> dict:
+    """One fleet-summary request: the fleet-wide table itself is scored
+    deterministically by core/fleet.py before this is called (free,
+    instant, no need to trace); this wraps only the LLM executive-summary
+    call, so it's traced consistently with the other two LLM call sites."""
+    return llm.generate_fleet_summary(counts, flagged_units)

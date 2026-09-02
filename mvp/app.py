@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv()
 
-from core import checklist, data_loader, llm, pipeline, predictive, rag, tracing  # noqa: E402
+from core import checklist, data_loader, fleet, llm, pipeline, predictive, rag, tracing  # noqa: E402
 
 st.set_page_config(page_title="Heat Pump Copilot", page_icon="🔧", layout="wide")
 
@@ -47,6 +47,11 @@ CATEGORY_LABELS = {
 @st.cache_data(show_spinner=False)
 def cached_cop_baseline():
     return data_loader.load_cop_baseline()
+
+
+@st.cache_data(show_spinner=False)
+def cached_installed_fleet():
+    return data_loader.load_installed_fleet()
 
 
 def render_assistant_card(result: dict) -> None:
@@ -86,7 +91,12 @@ st.sidebar.title("🔧 Heat Pump Copilot")
 st.sidebar.caption("Round 2 MVP — Field Commissioning & HEMS Connectivity Copilot")
 mode = st.sidebar.radio(
     "Mode",
-    ["🩺 Fault Triage Copilot", "✅ Commissioning Checker", "📉 COP-Drop Early-Warning"],
+    [
+        "🩺 Fault Triage Copilot",
+        "✅ Commissioning Checker",
+        "📉 COP-Drop Early-Warning",
+        "🏠 Installed Fleet Overview",
+    ],
 )
 
 st.sidebar.divider()
@@ -221,7 +231,7 @@ elif mode.startswith("✅"):
 # Mode 3 — COP-Drop Predictive Early-Warning
 # ---------------------------------------------------------------------------
 
-else:
+elif mode.startswith("📉"):
     st.title("📉 COP-Drop Predictive Early-Warning")
     st.caption(
         "Compares a reported coefficient-of-performance (COP) reading against the "
@@ -271,3 +281,71 @@ else:
             st.info(alert["note"])
             if not alert["ai_generated"]:
                 st.caption("⚠️ Deterministic note (no live model response) — add OPENAI_API_KEY for an AI-generated one.")
+
+
+# ---------------------------------------------------------------------------
+# Mode 4 — Installed Fleet Overview (demo: all 3 predictive flags at once)
+# ---------------------------------------------------------------------------
+
+else:
+    st.title("🏠 Installed Fleet Overview")
+    st.caption(
+        "The same COP-Drop Early-Warning check from the previous tab, run across an entire installed "
+        "fleet at once — a portfolio view built for demo purposes so it's obvious at a glance what this "
+        "use case catches. This is a small, hand-curated synthetic table, not real telemetry — see "
+        "data/installed_fleet_documentation.md."
+    )
+
+    try:
+        fleet_df = cached_installed_fleet()
+        baseline = cached_cop_baseline()
+        evaluated = fleet.evaluate_fleet(fleet_df, baseline)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Could not load/evaluate the installed fleet: {exc}")
+        st.stop()
+
+    counts = fleet.fleet_summary_counts(evaluated)
+    col1, col2, col3 = st.columns(3)
+    col1.metric("🟢 Normal", counts["normal"])
+    col2.metric("🟡 Watch", counts["watch"])
+    col3.metric("🔴 Early warning", counts["early_warning"])
+
+    FLAG_EMOJI = {"normal": "🟢", "watch": "🟡", "early_warning": "🔴"}
+    display_df = evaluated.copy()
+    display_df["Flag"] = display_df["severity"].map(FLAG_EMOJI) + " " + display_df["severity"].str.replace(
+        "_", " "
+    ).str.title()
+    display_df["Profile"] = display_df["profile"].map(data_loader.PROFILE_LABELS)
+    display_df = display_df.rename(
+        columns={
+            "unit_id": "Unit",
+            "model": "Model",
+            "region": "Region",
+            "expected_cop": "Expected COP",
+            "observed_cop": "Observed COP",
+            "deviation_pct": "Deviation %",
+            "notes": "Notes",
+        }
+    )
+    st.dataframe(
+        display_df[
+            ["Unit", "Model", "Profile", "Region", "Expected COP", "Observed COP", "Deviation %", "Flag", "Notes"]
+        ].sort_values("Deviation %", ascending=False),
+        use_container_width=True,
+        hide_index=True,
+    )
+    st.caption(f"{len(evaluated)} units shown — synthetic demo fleet, deliberately spans all 3 flags.")
+
+    if st.button("Generate fleet summary"):
+        flagged_units = evaluated[evaluated["severity"] != "normal"].to_dict("records")
+        try:
+            with st.spinner("Generating summary…"):
+                summary = pipeline.fleet_overview_turn(counts, flagged_units)
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Could not generate a fleet summary: {exc}")
+            summary = None
+
+        if summary:
+            st.info(summary["summary"])
+            if not summary["ai_generated"]:
+                st.caption("⚠️ Deterministic summary (no live model response) — add OPENAI_API_KEY for an AI-generated one.")

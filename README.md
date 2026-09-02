@@ -31,7 +31,7 @@ Ironhack AI Capstone, Round 2: the consulting package + working MVP that builds 
 │   ├── app.py
 │   ├── core/                        # RAG, LLM, fault-lookup, checklist, predictive — see mvp_documentation.md
 │   ├── scripts/ingest_manuals.py
-│   ├── tests/                       # 16 offline unit tests, no API keys needed
+│   ├── tests/                       # 20 offline unit tests, no API keys needed
 │   ├── requirements.txt · .env.example
 │   └── mvp_documentation.md
 ├── compliance/

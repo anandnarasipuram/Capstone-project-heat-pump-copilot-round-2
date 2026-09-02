@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core import checklist, fault_lookup, predictive  # noqa: E402
+from core import checklist, fault_lookup, fleet, predictive  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -121,3 +121,58 @@ def test_predictive_rejects_nonpositive_baseline():
 
     with pytest.raises(ValueError):
         predictive.evaluate_reading(expected_cop=0, observed_cop=1.0)
+
+
+# ---------------------------------------------------------------------------
+# fleet (offline — a tiny fixture baseline, no CSV needed)
+# ---------------------------------------------------------------------------
+
+def _fixture_baseline():
+    import pandas as pd
+
+    df = pd.DataFrame({"DE_COP_ASHP_floor": [3.0]}, index=[1])
+    df.index.name = "month"
+    return df
+
+
+def _fixture_fleet(deviations):
+    import pandas as pd
+
+    return pd.DataFrame(
+        [
+            {
+                "unit_id": f"U{i}",
+                "model": "TF-12",
+                "profile": "DE_COP_ASHP_floor",
+                "region": "Bayern",
+                "month": 1,
+                "install_date": "2023-01-01",
+                "target_deviation_pct": dev,
+                "notes": "test",
+            }
+            for i, dev in enumerate(deviations)
+        ]
+    )
+
+
+def test_evaluate_fleet_computes_severity_from_target_deviation():
+    result = fleet.evaluate_fleet(_fixture_fleet([5, 15, 25]), _fixture_baseline())
+    assert list(result["severity"]) == ["normal", "watch", "early_warning"]
+
+
+def test_evaluate_fleet_expected_cop_matches_baseline():
+    result = fleet.evaluate_fleet(_fixture_fleet([0]), _fixture_baseline())
+    assert result.iloc[0]["expected_cop"] == 3.0
+    assert result.iloc[0]["observed_cop"] == 3.0
+
+
+def test_fleet_summary_counts_all_keys_present_even_if_zero():
+    result = fleet.evaluate_fleet(_fixture_fleet([5, 5, 5]), _fixture_baseline())
+    counts = fleet.fleet_summary_counts(result)
+    assert counts == {"normal": 3, "watch": 0, "early_warning": 0}
+
+
+def test_fleet_summary_counts_mixed():
+    result = fleet.evaluate_fleet(_fixture_fleet([5, 15, 25, 30, 8]), _fixture_baseline())
+    counts = fleet.fleet_summary_counts(result)
+    assert counts == {"normal": 2, "watch": 1, "early_warning": 2}

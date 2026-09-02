@@ -83,6 +83,16 @@ def load_cop_baseline():
     return monthly
 
 
+def load_installed_fleet():
+    """Loads the small, hand-curated synthetic installed-fleet demo table
+    used by the Installed Fleet Overview tab — see
+    data/installed_fleet_documentation.md for what it is (and isn't).
+    Deliberately spans all 3 severity flags for demo purposes."""
+    import pandas as pd  # local import, same rationale as load_cop_baseline()
+
+    return pd.read_csv(DATA_DIR / "synthetic_installed_fleet.csv")
+
+
 def load_keyword_entries() -> list[dict]:
     """Loads the two keyword-tagged manual files (connectivity + safety)
     with their `keywords` lists intact, for core/keyword_fallback.py — the
