@@ -107,11 +107,6 @@ mode = st.sidebar.radio(
 )
 
 st.sidebar.divider()
-st.sidebar.caption(
-    "⚠️ Advisory decision support only. Every response is AI-suggested triage for a "
-    "human installer to confirm — never an autonomous instruction to act on electrical "
-    "or refrigerant work."
-)
 
 # Technical status — collapsed by default so a client demo shows the
 # product, not the vendor plumbing. Check this before a demo starts, not
@@ -126,6 +121,17 @@ with st.sidebar.expander("⚙️ System status", expanded=False):
         st.caption("Add PINECONE_API_KEY in .env for semantic search (falls back to keyword match otherwise).")
     if not tracing.is_configured():
         st.caption("Add LANGSMITH_API_KEY in .env to trace every interaction.")
+
+# Human-in-the-loop notice — the Art. 50 EU AI Act transparency disclosure
+# (see compliance/eu_ai_act_compliance.md), styled as a quiet trust signal
+# at the foot of the sidebar rather than an alarm right under the mode
+# picker. Still present on every screen, just not shouting.
+with st.sidebar.container(border=True):
+    st.markdown("🤝 **Human-in-the-loop, by design**")
+    st.caption(
+        "Every response here is AI-suggested triage. A human installer always confirms "
+        "before acting on electrical or refrigerant work."
+    )
 
 
 # ---------------------------------------------------------------------------
