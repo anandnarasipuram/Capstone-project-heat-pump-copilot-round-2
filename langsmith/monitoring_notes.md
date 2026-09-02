@@ -1,6 +1,7 @@
 # LangSmith Monitoring Sample
 
 > Script: [`run_trace_sample.py`](run_trace_sample.py) — run it yourself with your own `OPENAI_API_KEY` and `LANGSMITH_API_KEY` to generate real traces; see **How to run** below.
+> **Round 2 extends this.** The MVP wires live, continuous tracing into every real interaction (not just this Round 1 sample script) — see [../mvp/mvp_documentation.md](../mvp/mvp_documentation.md), "Monitoring — LangSmith tracing." An LLM-as-judge evaluator ([../mvp/scripts/judge_traces.py](../mvp/scripts/judge_traces.py)) scores those real traces for correctness and hallucination and posts the scores back as LangSmith feedback — see that same doc, "LLM-as-judge evaluation." This file's own dataset/experiment below remains the Round 1 evidence and hasn't been re-run.
 
 ## What this monitors
 

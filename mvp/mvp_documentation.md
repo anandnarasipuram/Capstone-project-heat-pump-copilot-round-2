@@ -5,7 +5,13 @@
 
 ## What this is
 
-A single Streamlit app (`app.py`) with four tabs, run from one `streamlit run` command:
+A single Streamlit app (`app.py`), run from one `streamlit run` command. Layout:
+
+- **Header** — title, a 🔔 notification bell (opens a dropdown of the Installed Fleet Overview's current High/Medium/Low alert counts and which units they are — computed once and shared with Tab 4, not recomputed), and a static "👤 Chleo · demo profile" indicator. There's no real authentication in this MVP (stated plainly, not implied) — this is a UI placeholder for where a real user identity would sit once the app has one.
+- **Browser-style tabs** for navigation between the four modes (not a sidebar radio) — click a tab the way you'd click a browser tab.
+- **Sidebar** — only the collapsed "⚙️ System status" panel and the "🤝 Human-in-the-loop, by design" notice. No navigation here.
+
+The four tabs:
 
 | Mode | Use case (from [research/use_cases.md](../research/use_cases.md)) | Lifecycle stage | Status |
 |---|---|---|---|
@@ -124,6 +130,23 @@ A message resolved entirely by the deterministic fault-code lookup (e.g. `E4`) p
 **One real setup gotcha worth knowing** (the exact one Round 1's trace sample already hit — see [../langsmith/monitoring_notes.md](../langsmith/monitoring_notes.md)): a LangSmith workspace on the **EU region** returns `403 Forbidden` on every trace unless `LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com` is set explicitly in `.env` — the classification/summary/alert itself still succeeds either way (tracing failure never breaks the underlying feature), but no traces reach the LangSmith UI until this is set. Check this first if traces aren't showing up.
 
 **How to view traces:** open [smith.langchain.com](https://smith.langchain.com) (or the EU equivalent), select the project named by `LANGSMITH_PROJECT` (defaults to `heat-pump-copilot-round2`), and every interaction since `LANGSMITH_API_KEY` was set will be listed there, filterable by the `mode:*` tags each root trace carries.
+
+## LLM-as-judge evaluation (`scripts/judge_traces.py`)
+
+Tracing captures *what* the copilot said; it doesn't say whether that was any good. `scripts/judge_traces.py` closes that gap — an instructor-requested addition — by pulling real `classify_symptom` runs already sitting in the LangSmith project (actual installer queries and the AI's actual answers, whatever traffic the app has generated, not a fixed set of worked examples) and scoring each with a second, independent LLM call:
+
+- **correctness** (0.0–1.0): does the category and guidance actually match what the manual excerpts the AI had access to support (or general HVAC knowledge, if none were retrieved)?
+- **hallucination** (0.0–1.0): does the response state a specific fact — a part, a threshold, a procedure — not actually grounded in those excerpts?
+
+```bash
+cd mvp
+python scripts/judge_traces.py            # judges up to 20 recent runs
+python scripts/judge_traces.py --limit 50
+```
+
+Scores are posted back to the *original* trace via `Client.create_feedback` — they show up as `llm_judge_correctness` / `llm_judge_hallucination` feedback right next to each run in the LangSmith UI, not in a separate report disconnected from the traces themselves. **Confirmed live**: run against this project's own real traces (including free-text German-language symptoms), it correctly scored 5/5 runs, all with `hallucination = 0.0` and `correctness` between 0.80–1.00, with per-run reasoning explaining each score (e.g. flagging one response as slightly incomplete rather than wrong, rather than either rubber-stamping or over-penalizing it).
+
+This is a judge, not a gate — nothing in the app currently blocks on these scores. A pilot would set a review threshold (e.g. flag any run scoring `hallucination > 0.3` for manual review) and run this on a schedule rather than by hand; that's named here as the natural next step, not built into this script.
 
 ## How to run it
 
