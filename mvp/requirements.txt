@@ -1,0 +1,18 @@
+# Heat Pump Copilot — Round 2 MVP
+# Tested against Python 3.11/3.12. Install with: pip install -r requirements.txt
+
+streamlit>=1.38
+pandas>=2.2
+python-dotenv>=1.0.1
+
+# Core AI capability: OpenAI classification + embeddings, via LangChain,
+# retrieved from a Pinecone serverless vector store.
+openai>=1.54.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+langchain-pinecone>=0.2.0
+pinecone>=5.0.0
+
+# Dev / testing (offline unit tests only — no API keys needed)
+pytest>=8.0
