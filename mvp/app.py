@@ -88,7 +88,7 @@ def render_assistant_card(result: dict) -> None:
 # ---------------------------------------------------------------------------
 
 st.sidebar.title("🔧 Heat Pump Copilot")
-st.sidebar.caption("Round 2 MVP — Field Commissioning & HEMS Connectivity Copilot")
+st.sidebar.caption("Field Commissioning & HEMS Connectivity Copilot")
 mode = st.sidebar.radio(
     "Mode",
     [
@@ -100,22 +100,25 @@ mode = st.sidebar.radio(
 )
 
 st.sidebar.divider()
-st.sidebar.markdown("**Configuration status**")
-st.sidebar.markdown(f"{'🟢' if llm.is_configured() else '🔴'} OpenAI (classification)")
-st.sidebar.markdown(f"{'🟢' if rag.is_configured() else '🟡'} Pinecone RAG (falls back to keyword match)")
-st.sidebar.markdown(f"{'🟢' if tracing.is_configured() else '🟡'} LangSmith (tracing — optional)")
-if not llm.is_configured():
-    st.sidebar.caption("Add OPENAI_API_KEY to mvp/.env for live AI responses — see mvp_documentation.md.")
-if not tracing.is_configured():
-    st.sidebar.caption("Add LANGSMITH_API_KEY to mvp/.env to trace every interaction — see mvp_documentation.md.")
-
-st.sidebar.divider()
 st.sidebar.caption(
     "⚠️ Advisory decision support only. Every response is AI-suggested triage for a "
     "human installer to confirm — never an autonomous instruction to act on electrical "
     "or refrigerant work."
 )
-st.sidebar.caption("Built on the Round 1 POC — see [poc/poc_documentation.md](../poc/poc_documentation.md).")
+
+# Technical status — collapsed by default so a client demo shows the
+# product, not the vendor plumbing. Check this before a demo starts, not
+# during it: expand once to confirm all 3 are green, then leave collapsed.
+with st.sidebar.expander("⚙️ System status", expanded=False):
+    st.markdown(f"{'🟢' if llm.is_configured() else '🔴'} AI classification")
+    st.markdown(f"{'🟢' if rag.is_configured() else '🟡'} Knowledge-base search")
+    st.markdown(f"{'🟢' if tracing.is_configured() else '🟡'} Interaction monitoring")
+    if not llm.is_configured():
+        st.caption("Add OPENAI_API_KEY in .env for live AI responses.")
+    if not rag.is_configured():
+        st.caption("Add PINECONE_API_KEY in .env for semantic search (falls back to keyword match otherwise).")
+    if not tracing.is_configured():
+        st.caption("Add LANGSMITH_API_KEY in .env to trace every interaction.")
 
 
 # ---------------------------------------------------------------------------
