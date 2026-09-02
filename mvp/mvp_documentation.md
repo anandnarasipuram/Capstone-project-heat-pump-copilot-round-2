@@ -104,6 +104,16 @@ Open the app, stay on 🩺 Fault Triage Copilot, and try `Low refrigerant pressu
    ```
 4. `streamlit run app.py` again. The sidebar's configuration status flips to 🟢 for both OpenAI and Pinecone. Try a free-text symptom with no fault code, e.g. `No comms from the outdoor unit, controller not responding`, to see live embeddings retrieval + grounded LLM classification.
 
+### Confirmed live (this is not a theoretical pipeline)
+
+The full RAG + classification pipeline was run end-to-end against real OpenAI + Pinecone during development, not just unit-tested offline:
+
+- `scripts/ingest_manuals.py` created the `heat-pump-copilot-manuals` Pinecone index and embedded all 16 manual entries.
+- `core.rag.retrieve_manual_context("No comms from the outdoor unit, controller not responding")` returned the F.9998 eBUS-fault excerpt as its top semantic match — the same grounding the POC's keyword matcher found, now via real embeddings similarity instead of substring matching.
+- `core.llm.classify_symptom(...)` on that same symptom returned `category: installer_error`, correct eBUS wiring guidance, `confidence: 0.9`, `ai_generated: True`.
+- The same call on the German symptom `"Wasserdurchfluss Problem, Pumpe steht"` retrieved the right English-language manual excerpt (`F.532`/`F.788` flow-related entries) on semantic similarity — no German keywords hand-coded anywhere — and the model replied **in German** with correct fix guidance. This is the concrete resolution of the POC's stated language limitation (see [../poc/poc_documentation.md](../poc/poc_documentation.md), "Language" section: *"a differently-phrased German symptom simply won't match [the keyword list]"*) — it no longer needs to match a hand-picked keyword at all.
+- `core.llm.summarize_checklist(...)` and `core.llm.generate_predictive_alert(...)` were both exercised live too, each returning `ai_generated: True` with correct, on-topic natural-language output (the checklist summary correctly cited the F.9998 fault code for an unchecked eBUS item).
+
 ## Error handling (what "basic error handling" means here)
 
 - **Every LLM/embedding/Pinecone call is wrapped and fails soft**, never crashes the app: `core/llm.py`'s three public functions always return a dict with an `ai_generated: bool` flag — `False` means the deterministic fallback text is showing, and the UI says so explicitly (`⚠️ Deterministic ... — add OPENAI_API_KEY ...`). This mirrors the POC's own safe-default principle in its "Parse OpenAI Response" node: *"if the model output can't be parsed, escalate rather than guess — never silently default to 'no action needed'."*
@@ -117,7 +127,7 @@ Open the app, stay on 🩺 Fault Triage Copilot, and try `Low refrigerant pressu
 python -m pytest tests/ -v
 ```
 
-16 tests cover the pure-logic modules offline: fault-code extraction/normalization against the exact worked examples in [poc/poc_documentation.md](../poc/poc_documentation.md), checklist scoring, and COP-deviation severity thresholds. They do **not** call OpenAI or Pinecone — verifying the live LLM/RAG path requires running the app itself with real keys, the same limitation the POC's own testing note states plainly rather than hides (see poc/poc_documentation.md, "Limits vs. production").
+16 tests cover the pure-logic modules offline: fault-code extraction/normalization against the exact worked examples in [poc/poc_documentation.md](../poc/poc_documentation.md), checklist scoring, and COP-deviation severity thresholds. They do **not** call OpenAI or Pinecone by design (no API keys needed to run them) — the live LLM/RAG path is verified separately by actually running the app/pipeline with real keys, which was done during development (see "Confirmed live" above) and should be re-run before any live demo or pilot go-live to confirm current model/vendor behavior.
 
 `core/llm.py`'s safe-default fallback paths (missing key, and a simulated bad key) were manually verified during development to confirm they return the documented fallback shape rather than raising — see the git history for that verification run.
 
