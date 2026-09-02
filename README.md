@@ -13,6 +13,7 @@ Ironhack AI Capstone, Round 2: the consulting package + working MVP that builds 
 | **EU AI Act compliance** | [compliance/eu_ai_act_compliance.md](compliance/eu_ai_act_compliance.md) |
 | **GDPR documentation** | [compliance/gdpr_documentation.md](compliance/gdpr_documentation.md) |
 | **Strategic deployment & commercialisation plan** | [strategic_plan.md](strategic_plan.md) |
+| **Quarterly roadmap, sprint plan & Definition of Done** (IHK certification) | [roadmap_sprint_plan.md](roadmap_sprint_plan.md) |
 | **Final presentation** | [presentation.pptx](presentation.pptx) (source: [presentation/build_presentation.py](presentation/build_presentation.py)) |
 
 ## Repository structure
@@ -23,6 +24,7 @@ Ironhack AI Capstone, Round 2: the consulting package + working MVP that builds 
 ├── use_case_definition.md          # Round 2 — problem, company profile, solution, stakeholders, success criteria
 ├── roi_risk_assessment.md          # Round 2 — costs, value, 12/36-month ROI, 8-risk matrix
 ├── strategic_plan.md               # Round 2 — POC → Pilot → Full Deployment, GTM, KPIs, commercialisation
+├── roadmap_sprint_plan.md          # IHK certification — Q4 2026 sprint plan, user stories + AC, Definition of Done
 ├── presentation.pptx               # Round 2 — final pitch deck (16 slides)
 ├── poc/                             # Round 2-formatted POC docs (the Round 1 n8n workflow, re-documented)
 │   ├── poc_workflow.json
