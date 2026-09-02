@@ -39,6 +39,11 @@ CATEGORY_LABELS = {
     "installer_error": "Installer/commissioning error",
 }
 
+# Chleo's fictional model lineup, reused from data/synthetic_fault_dataset.csv
+# for consistency across the whole demo. See Mode 1's selector below and
+# core/llm.py's module docstring for what this does (and doesn't) do.
+MODEL_OPTIONS = ["Not specified", "TF-08", "TF-12", "AS-10", "AS-16"]
+
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -68,6 +73,8 @@ def render_assistant_card(result: dict) -> None:
     confidence = result.get("confidence")
     conf_str = f" · confidence {confidence}" if confidence is not None else ""
     st.caption(f"Source: {source_label}{conf_str}")
+    if result.get("model") and result["model"] != "Not specified":
+        st.caption(f"Model: {result['model']}")
 
     if result.get("manual_sources"):
         with st.expander("Manual citations"):
@@ -133,6 +140,16 @@ if mode.startswith("🩺"):
         "error, and returns fix guidance or an escalation route."
     )
 
+    selected_model = st.selectbox(
+        "Which unit is this?",
+        MODEL_OPTIONS,
+        help=(
+            "Optional. Sharpens the AI's answer and lets Chleo's team see fault trends "
+            "by model over time — it doesn't currently filter which fault codes are "
+            "recognized, since today's manual knowledge base isn't split per model."
+        ),
+    )
+
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -152,7 +169,7 @@ if mode.startswith("🩺"):
         with st.chat_message("assistant"):
             try:
                 with st.spinner("Classifying…"):
-                    result = pipeline.fault_triage_turn(prompt)
+                    result = pipeline.fault_triage_turn(prompt, model=selected_model)
             except Exception as exc:  # noqa: BLE001 — last-resort guard so the chat never hard-crashes
                 st.error(f"Something went wrong processing that message: {exc}")
                 result = {
@@ -163,6 +180,7 @@ if mode.startswith("🩺"):
                     "confidence": 0.0,
                     "manual_sources": [],
                     "ai_generated": False,
+                    "model": selected_model,
                 }
             result["role"] = "assistant"
             render_assistant_card(result)

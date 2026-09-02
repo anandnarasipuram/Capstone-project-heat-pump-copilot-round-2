@@ -81,6 +81,12 @@ core/fault_lookup.py — regex-extract a fault code (E4, F532, F.9998, ...)
       before acting" disclaimer — never an autonomous instruction
 ```
 
+**Model selector ("Which unit is this?"):** an installer can optionally pick which of Chleo's models (`TF-08`/`TF-12`/`AS-10`/`AS-16`) they're working on, threaded through both paths above as `model` and shown on the result card. Two honest things this does today, and one it doesn't:
+
+- ✅ Passed to the LLM as context (`core/llm.py:classify_symptom`), so the model prompt is instructed to make its answer read as specific to that unit.
+- ✅ Recorded on every result and trace, so `model` becomes a real filterable field once tickets are persisted — directly feeds the "connectivity-failure rate by model/firmware" metric already scoped in [../dashboard/dashboard_documentation.md](../dashboard/dashboard_documentation.md), not a new metric invented for this feature.
+- ❌ It does **not** filter which fault codes are recognized or which manual excerpts are retrieved — the current 13-code lookup table and 16-entry manual corpus aren't actually split per Chleo model (the real Vaillant codes are explicitly representative reference documentation, not tied to any specific Chleo model — see [../data/manuals/README.md](../data/manuals/README.md)). Building genuine per-model filtering is a natural next step once Chleo's own model-specific documentation is ingested, not something to fake with today's shared corpus.
+
 ### Modes 2, 3, and 4
 
 - **Commissioning Checker** (`core/checklist.py`): a fixed list of commissioning steps, each citing the fault code it would otherwise surface as later (e.g. unchecked eBUS wiring → F.9998). Deterministic scoring decides sign-off readiness; `core/llm.py:summarize_checklist()` turns that into a short natural-language summary for the installer.

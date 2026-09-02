@@ -18,14 +18,22 @@ from .tracing import traceable
 
 
 @traceable(name="fault_triage_turn", tags=["heat-pump-copilot", "mode:fault_triage"])
-def fault_triage_turn(symptom: str) -> dict:
+def fault_triage_turn(symptom: str, model: str = "Not specified") -> dict:
     """One installer chat turn: deterministic lookup first (free, instant,
     traced as its own child span so coverage vs. LLM usage is visible in
     LangSmith), else RAG retrieval (Pinecone, falling back to keyword
-    match) feeding a grounded classification call."""
+    match) feeding a grounded classification call.
+
+    `model` is the installer-selected heat pump model (see app.py's Mode 1
+    selector). It's passed to the LLM as context and recorded on the
+    trace/result either way — see core/llm.py's module docstring on why
+    this narrows the AI's answer and feeds per-model analytics without
+    actually filtering the fault-code table, since the current manual
+    corpus isn't per-model."""
     deterministic = fault_lookup.try_deterministic_classify(symptom)
     if deterministic:
         deterministic["retrieval_mode"] = None
+        deterministic["model"] = model
         return deterministic
 
     retrieval_mode = "keyword fallback"
@@ -39,7 +47,7 @@ def fault_triage_turn(symptom: str) -> dict:
     else:
         excerpts, sources = keyword_fallback.retrieve(symptom)
 
-    result = llm.classify_symptom(symptom, excerpts, sources)
+    result = llm.classify_symptom(symptom, excerpts, sources, model=model)
     result["retrieval_mode"] = retrieval_mode
     return result
 

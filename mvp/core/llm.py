@@ -37,6 +37,7 @@ Classify the installer's reported symptom into exactly one category:
 - "installer_error": a commissioning/installation step (wiring, pressure, flow, electrical supply) needs correcting on site
 
 If manual excerpts are provided, treat them as authoritative over your own general knowledge, and cite them in your reasoning.
+The installer may specify which heat pump model they're working on — use it to make your guidance read as specific to their situation (e.g. referencing the model in your reply), but never invent model-specific fault codes, thresholds, or behavior that isn't actually present in the manual excerpts provided. If the model is "Not specified" or no excerpts are provided, answer from the symptom text and your general HVAC knowledge as usual.
 Reply in the same language the installer used.
 Respond ONLY as JSON: {"category": "...", "message": "concrete next-step guidance or escalation instruction, 1-3 sentences", "confidence": 0.0-1.0}
 Never issue autonomous repair instructions for hardware faults beyond "escalate to a certified technician" — this is advisory support for a human installer, not an autonomous action."""
@@ -100,13 +101,18 @@ def is_configured() -> bool:
 
 
 @traceable(name="classify_symptom", tags=["heat-pump-copilot", "mode:fault_triage"])
-def classify_symptom(symptom: str, manual_excerpts: list[str], manual_sources: list[str]) -> dict:
+def classify_symptom(
+    symptom: str, manual_excerpts: list[str], manual_sources: list[str], model: str = "Not specified"
+) -> dict:
     context_block = (
         "\n".join(f"- {excerpt}" for excerpt in manual_excerpts)
         if manual_excerpts
         else "(no matching manual excerpt found — classify from the symptom alone)"
     )
-    user_prompt = f"Installer's reported symptom:\n{symptom}\n\nManual excerpts:\n{context_block}"
+    user_prompt = (
+        f"Heat pump model: {model}\n\n"
+        f"Installer's reported symptom:\n{symptom}\n\nManual excerpts:\n{context_block}"
+    )
 
     parsed = _chat_json(CLASSIFICATION_SYSTEM_PROMPT, user_prompt)
     if parsed and "category" in parsed and "message" in parsed:
@@ -117,6 +123,7 @@ def classify_symptom(symptom: str, manual_excerpts: list[str], manual_sources: l
             "source": "llm",
             "manual_sources": manual_sources,
             "ai_generated": True,
+            "model": model,
         }
 
     # Safe default — mirrors the POC's "Parse OpenAI Response" fallback:
@@ -128,6 +135,7 @@ def classify_symptom(symptom: str, manual_excerpts: list[str], manual_sources: l
         "source": "llm",
         "manual_sources": manual_sources,
         "ai_generated": False,
+        "model": model,
     }
 
 
