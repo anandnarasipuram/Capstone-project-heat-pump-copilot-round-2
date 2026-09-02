@@ -1,0 +1,33 @@
+{
+  "description": "Paraphrased safety-device and installation guidance from the aroTHERM plus installation manual, used for free-text keyword retrieval when an installer's symptom carries no formal fault code (n8n 'Retrieve Manual Context' node). See README.md for source and copyright notes.",
+  "entries": [
+    {
+      "id": "ebus_comm_fault",
+      "category": "installer_error",
+      "keywords": ["no communication", "ebus", "wiring fault", "cable", "polarity", "controller not responding", "kommunikationsfehler"],
+      "summary": "Communication faults between the outdoor unit and its controller are documented as usually a wiring/cable-spec/polarity issue at installation, not a broken unit - check the eBUS wiring before escalating to the manufacturer.",
+      "source": "Vaillant aroTHERM fault code reference (F.9998)"
+    },
+    {
+      "id": "flow_rate_low",
+      "category": "installer_error",
+      "keywords": ["no flow", "low flow", "pump not running", "air in system", "circulation", "flow rate", "wasserdurchfluss"],
+      "summary": "Low or absent circulation flow is documented as usually a blockage, trapped air, or an incorrectly balanced circuit - an installer-side check, before it's treated as a hardware fault.",
+      "source": "Vaillant aroTHERM fault code reference (F.532 / F.788)"
+    },
+    {
+      "id": "evaporator_blocked",
+      "category": "installer_error",
+      "keywords": ["blocked", "debris", "leaves", "airflow restricted", "frost buildup", "ice on unit", "evaporator dirty"],
+      "summary": "Restricted airflow or excess frost on the outdoor unit is documented as typically caused by debris or a maintenance gap around the evaporator, not a component failure - clear and recheck before escalating.",
+      "source": "Vaillant aroTHERM installation manual, section 3.13-3.14"
+    },
+    {
+      "id": "high_pressure_cutout",
+      "category": "hardware_fault",
+      "keywords": ["high pressure", "pressure switch", "refrigerant leak", "compressor cutting out", "trips repeatedly"],
+      "summary": "Refrigerant-circuit pressure exceeding the safety threshold trips a protective cutout after repeated failed restarts - documented as a hardware/refrigerant-circuit issue requiring a certified technician.",
+      "source": "Vaillant aroTHERM installation manual, section 3.14 (safety devices)"
+    }
+  ]
+}

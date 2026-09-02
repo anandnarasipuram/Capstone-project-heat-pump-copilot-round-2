@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Heat Pump Field Commissioning & Connectivity Copilot — Preliminary Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #101a1c;
+    --panel: #17262a;
+    --panel-line: #253638;
+    --copper: #cd8145;
+    --copper-dim: #8a5a34;
+    --teal: #5aab9d;
+    --text: #ece5da;
+    --muted: #8ea1a0;
+    --danger: #c76a5a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    line-height:1.5;
+  }
+  h1,h2,h3,.num{ font-family:'Space Grotesk', sans-serif; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:40px 28px 80px; }
+
+  header{ margin-bottom:36px; }
+  .kicker{ color:var(--copper); font-size:14px; font-weight:600; margin-bottom:6px; }
+  h1{ font-size:32px; font-weight:700; margin:0 0 10px; max-width:720px; }
+  .sub{ color:var(--muted); max-width:640px; font-size:15px; }
+
+  .kpi-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:32px 0 40px; }
+  .kpi{ background:var(--panel); border:1px solid var(--panel-line); border-radius:6px; padding:18px 18px 16px; }
+  .kpi .num{ font-size:28px; font-weight:700; color:var(--copper); }
+  .kpi .label{ font-size:13px; color:var(--muted); margin-top:4px; }
+
+  .grid-2{ display:grid; grid-template-columns:1.1fr 0.9fr; gap:18px; margin-bottom:18px; }
+  .panel{ background:var(--panel); border:1px solid var(--panel-line); border-radius:6px; padding:22px; }
+  .panel h2{ font-size:16px; font-weight:600; margin:0 0 4px; }
+  .panel .desc{ font-size:13px; color:var(--muted); margin-bottom:16px; }
+  canvas{ max-width:100%; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; color:var(--muted); font-weight:500; padding:8px 10px; border-bottom:1px solid var(--panel-line); }
+  td{ padding:9px 10px; border-bottom:1px solid var(--panel-line); vertical-align:top; }
+  .cov{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; }
+  .cov.full{ background:var(--teal); }
+  .cov.partial{ background:var(--copper); }
+  .cov.none{ background:var(--panel-line); }
+
+  .roadmap{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:6px; }
+  .step{ border-left:2px solid var(--copper-dim); padding:4px 0 4px 16px; position:relative; }
+  .step::before{ content:attr(data-n); position:absolute; left:-11px; top:2px; width:20px; height:20px; border-radius:50%; background:var(--bg); border:2px solid var(--copper); color:var(--copper); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; }
+  .step h3{ font-size:14px; margin:0 0 4px; }
+  .step p{ font-size:13px; color:var(--muted); margin:0; }
+
+  .quadrant-legend{ display:flex; gap:18px; margin-top:10px; font-size:12px; color:var(--muted); }
+  .quadrant-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .dot{ width:9px; height:9px; border-radius:50%; }
+
+  footer{ margin-top:36px; font-size:12px; color:var(--muted); border-top:1px solid var(--panel-line); padding-top:16px; }
+
+  @media (max-width:820px){
+    .kpi-row{ grid-template-columns:repeat(2,1fr); }
+    .grid-2{ grid-template-columns:1fr; }
+    .roadmap{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Capstone — Round 2 preliminary analysis</div>
+    <h1>Heat Pump Field Commissioning &amp; API Connectivity Copilot</h1>
+    <div class="sub">Installer-facing decision support that tells a technician whether a fault is hardware or connectivity — before a second truck roll happens.</div>
+  </header>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="num">2.63M</div><div class="label">EU residential heat pumps sold, 2025 (+11% YoY)</div></div>
+    <div class="kpi"><div class="num">~28M</div><div class="label">Total installed stock across Europe, 2025</div></div>
+    <div class="kpi"><div class="num">500k+</div><div class="label">New installers EHPA says are needed by 2030</div></div>
+    <div class="kpi"><div class="num">0</div><div class="label">Public datasets covering both hardware faults + connectivity telemetry</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Market growth outpacing installer supply</h2>
+      <div class="desc">Residential sales, EU (millions of units) — EHPA, 2025 market report</div>
+      <canvas id="growthChart" height="200"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Air-water heat pump growth, 2015 – 2024</h2>
+      <div class="desc">The fastest-growing category — and the one this copilot targets</div>
+      <canvas id="awChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px;">
+    <h2>Opportunity / risk map</h2>
+    <div class="desc">Preliminary placement — impact to the business vs. how contained the risk is (or how ready the opportunity is to act on)</div>
+    <canvas id="quadChart" height="260"></canvas>
+    <div class="quadrant-legend">
+      <span><span class="dot" style="background:var(--teal)"></span> Opportunity</span>
+      <span><span class="dot" style="background:var(--danger)"></span> Risk</span>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px;">
+    <h2>Public dataset coverage</h2>
+    <div class="desc">Where each candidate dataset actually helps — and where the gap sits</div>
+    <table>
+      <tr><th>Dataset</th><th>Hardware faults</th><th>Connectivity telemetry</th><th>Field / behavioral data</th></tr>
+      <tr><td>NIST/Purdue Heat Pump Fault Data</td><td><span class="cov full"></span>Full</td><td><span class="cov none"></span>None</td><td><span class="cov none"></span>None</td></tr>
+      <tr><td>Kaggle District Heating Faults</td><td><span class="cov partial"></span>Partial (adjacent)</td><td><span class="cov none"></span>None</td><td><span class="cov partial"></span>Partial</td></tr>
+      <tr><td>ecobee Donate Your Data</td><td><span class="cov none"></span>None</td><td><span class="cov none"></span>None</td><td><span class="cov full"></span>Full</td></tr>
+      <tr><td>TeleLogs (5G RCA, synthetic)</td><td><span class="cov none"></span>None</td><td><span class="cov full"></span>Full (structural analog)</td><td><span class="cov none"></span>None</td></tr>
+      <tr><td>IoT-23 / TON_IoT</td><td><span class="cov none"></span>None</td><td><span class="cov partial"></span>Partial (security-framed)</td><td><span class="cov none"></span>None</td></tr>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Proposed build sequence</h2>
+    <div class="desc">Lower-risk, cheaper pieces first — they also generate the data that makes the flagship better</div>
+    <div class="roadmap">
+      <div class="step" data-n="1">
+        <h3>Site readiness assistant</h3>
+        <p>Pre-commissioning checklist Q&amp;A over manufacturer manuals. Pure retrieval, near-zero inference risk.</p>
+      </div>
+      <div class="step" data-n="2">
+        <h3>Installer support chatbot</h3>
+        <p>Tier-1 deflection reusing the same knowledge base. Near-zero marginal build cost once step 1 exists.</p>
+      </div>
+      <div class="step" data-n="3">
+        <h3>Fault triage copilot</h3>
+        <p>Flagship: hardware-vs-connectivity decision support, human-in-the-loop, built on the blended dataset.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Sources: EHPA Market Report 2025 · JRC "Heat Pumps in the European Union" · NIST/Purdue Fault Data (data.gov) · Kaggle (mathieuvallee/ai-dhc) · ecobee/DOE Donate Your Data · Hugging Face (netop/TeleLogs). Full source list in the accompanying research document.
+  </footer>
+
+</div>
+
+<script>
+Chart.defaults.color = '#8ea1a0';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.borderColor = '#253638';
+
+new Chart(document.getElementById('growthChart'), {
+  type: 'bar',
+  data: {
+    labels: ['2024', '2025'],
+    datasets: [{
+      label: 'Units sold (millions)',
+      data: [2.38, 2.63],
+      backgroundColor: ['#8a5a34', '#cd8145'],
+      borderRadius: 4,
+      maxBarThickness: 70
+    }]
+  },
+  options: {
+    plugins: { legend: { display:false } },
+    scales: { y: { beginAtZero:true, grid:{ color:'#253638' } }, x: { grid:{ display:false } } }
+  }
+});
+
+new Chart(document.getElementById('awChart'), {
+  type: 'bar',
+  data: {
+    labels: ['2015', '2024'],
+    datasets: [{
+      label: 'Air-water units sold (thousands)',
+      data: [216, 809],
+      backgroundColor: ['#3d5f5a', '#5aab9d'],
+      borderRadius: 4,
+      maxBarThickness: 70
+    }]
+  },
+  options: {
+    plugins: { legend: { display:false } },
+    scales: { y: { beginAtZero:true, grid:{ color:'#253638' } }, x: { grid:{ display:false } } }
+  }
+});
+
+new Chart(document.getElementById('quadChart'), {
+  type: 'scatter',
+  data: {
+    datasets: [
+      {
+        label: 'Opportunity',
+        backgroundColor: '#5aab9d',
+        data: [
+          {x:8, y:8, r:'Fewer truck rolls / faster resolution'},
+          {x:6, y:7, r:'Installer skill-gap mitigation'},
+          {x:5, y:6, r:'Warranty/support cost reduction'},
+          {x:7, y:5, r:'GTM narrative for market entry'}
+        ]
+      },
+      {
+        label: 'Risk',
+        backgroundColor: '#c76a5a',
+        data: [
+          {x:9, y:3, r:'AI Act — safety component classification'},
+          {x:8, y:4, r:'Misdiagnosis liability'},
+          {x:6, y:5, r:'GDPR — household/occupancy data'},
+          {x:4, y:6, r:'Small-vendor MLOps resourcing'}
+        ]
+      }
+    ]
+  },
+  options: {
+    plugins: {
+      legend: { position: 'top', align:'start' },
+      tooltip: { callbacks: { label: (ctx) => ctx.raw.r } }
+    },
+    scales: {
+      x: { min:0, max:10, title:{ display:true, text:'Impact on the business' }, grid:{ color:'#253638' } },
+      y: { min:0, max:10, title:{ display:true, text:'How well-understood / containable' }, grid:{ color:'#253638' } }
+    }
+  }
+});
+</script>
+</body>
+</html>

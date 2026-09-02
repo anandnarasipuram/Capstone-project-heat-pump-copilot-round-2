@@ -1,0 +1,33 @@
+{
+  "description": "Paraphrased Cosy Hub/Pod status guidance, used for free-text keyword retrieval when an installer's symptom carries no formal fault code (n8n 'Retrieve Manual Context' node). See README.md for source and copyright notes.",
+  "entries": [
+    {
+      "id": "wifi_hub_offline",
+      "category": "connectivity_issue",
+      "keywords": ["wifi", "wi-fi", "router", "network", "verbindung", "netzwerk", "yellow light", "gelbes licht", "offline"],
+      "summary": "A steady yellow hub light usually means lost WiFi, not a broken unit - check the router is powered on; the hub auto-reconnects once WiFi is back.",
+      "source": "Octopus Cosy Hub/Pod status guide"
+    },
+    {
+      "id": "primary_pod_disconnected",
+      "category": "connectivity_issue",
+      "keywords": ["pod", "sensor disconnected", "primary sensor", "room sensor", "red light hub", "sensor offline"],
+      "summary": "A steady red hub light typically means the primary room sensor for a heating zone has dropped off - check its battery and proximity to the hub, or promote another sensor to primary.",
+      "source": "Octopus Cosy Hub/Pod status guide"
+    },
+    {
+      "id": "pod_low_battery",
+      "category": "connectivity_issue",
+      "keywords": ["low battery", "battery", "flashing red sensor", "aaa batteries", "batterie"],
+      "summary": "A slow-flashing red light on a room sensor is usually just a low battery, not a fault - replace with two fresh AAA batteries first.",
+      "source": "Octopus Cosy Hub/Pod status guide"
+    },
+    {
+      "id": "hub_fault_indicator",
+      "category": "hardware_fault",
+      "keywords": ["flashing red hub", "hub fault", "unit fault indicator"],
+      "summary": "A flashing red light on the hub itself (not a room sensor) is documented as an actual unit fault, not a connectivity problem - treat as hardware and escalate.",
+      "source": "Octopus Cosy Hub/Pod status guide"
+    }
+  ]
+}

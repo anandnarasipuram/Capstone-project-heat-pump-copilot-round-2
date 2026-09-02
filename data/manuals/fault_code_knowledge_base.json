@@ -1,0 +1,69 @@
+{
+  "description": "Fault codes and paraphrased cause/fix/escalation guidance, keyed for exact-match deterministic lookup. Extends the original 5-code synthetic table (data/synthetic_fault_dataset.csv, n8n/workflow.json 'Lookup Known Fault Code' node) with real Vaillant aroTHERM codes. See README.md for source, scope, and copyright notes.",
+  "entries": [
+    {
+      "code": "F.22",
+      "category": "installer_error",
+      "cause_summary": "System water pressure has fallen below the normal operating range, or the pressure sensor itself is faulty.",
+      "fix_or_escalation_action": "Check system water pressure at the filling loop; if below roughly 1 bar, top up to 1-1.5 bar. If pressure is already normal and the fault persists, escalate - likely a sensor fault.",
+      "escalation_path": "installer_first",
+      "source": "Vaillant aroTHERM fault code reference"
+    },
+    {
+      "code": "F.42",
+      "category": "hardware_fault",
+      "cause_summary": "An internal coding resistor is damaged or not correctly set.",
+      "fix_or_escalation_action": "Escalate to a certified technician - documented as a component-level fault inside the unit, not installer- or app-side.",
+      "escalation_path": "manufacturer_engineer",
+      "source": "Vaillant aroTHERM fault code reference"
+    },
+    {
+      "code": "F.514",
+      "category": "hardware_fault",
+      "cause_summary": "The compressor inlet temperature sensor or its wiring has failed.",
+      "fix_or_escalation_action": "Escalate to a certified technician - documented as a sensor fault requiring internal inspection.",
+      "escalation_path": "manufacturer_engineer",
+      "source": "Vaillant aroTHERM fault code reference"
+    },
+    {
+      "code": "F.532",
+      "category": "installer_error",
+      "cause_summary": "Flow rate through the building heating circuit is too low, most often from a blockage, trapped air, or incorrect system balancing.",
+      "fix_or_escalation_action": "Check the building circuit for blockage, trapped air, or incorrect balancing before escalating - documented as usually an installation/flow issue, not a broken unit.",
+      "escalation_path": "installer_first",
+      "source": "Vaillant aroTHERM fault code reference"
+    },
+    {
+      "code": "F.718",
+      "category": "hardware_fault",
+      "cause_summary": "The outdoor unit's fan is blocked, damaged, or its motor has failed.",
+      "fix_or_escalation_action": "Escalate to a certified technician - documented as a blocked or faulty fan requiring hardware inspection.",
+      "escalation_path": "manufacturer_engineer",
+      "source": "Vaillant aroTHERM fault code reference"
+    },
+    {
+      "code": "F.752",
+      "category": "installer_error",
+      "cause_summary": "The inverter/frequency converter has faulted, most often traced back to an incoming electrical supply problem rather than the inverter itself.",
+      "fix_or_escalation_action": "Check incoming mains voltage, phase order, and earthing before escalating - documented as usually an electrical-supply issue at the installation, not a broken inverter.",
+      "escalation_path": "installer_first",
+      "source": "Vaillant aroTHERM fault code reference"
+    },
+    {
+      "code": "F.788",
+      "category": "installer_error",
+      "cause_summary": "The building circuit pump has faulted, frequently linked to air in the system or restricted flow rather than the pump hardware.",
+      "fix_or_escalation_action": "Check the building circuit for air or restricted flow before escalating - documented as usually an installation-side pump/flow issue.",
+      "escalation_path": "installer_first",
+      "source": "Vaillant aroTHERM fault code reference"
+    },
+    {
+      "code": "F.9998",
+      "category": "installer_error",
+      "cause_summary": "Communication has failed between the heat pump and its controller(s) over the eBUS line - commonly a wiring problem (cable type, polarity, shielding, proximity to power cables) rather than a broken controller.",
+      "fix_or_escalation_action": "Check eBUS wiring: correct cable type and polarity, no shielded/twisted cable, minimum clearance from power lines - documented as usually a wiring issue, not a broken controller.",
+      "escalation_path": "installer_first",
+      "source": "Vaillant aroTHERM fault code reference"
+    }
+  ]
+}

@@ -1,0 +1,372 @@
+<!doctype html>
+<title>Field Commissioning Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #f0efe7;
+    --paper-raised: #f7f6f0;
+    --ink: #1b2320;
+    --ink-soft: #4b5450;
+    --rule: #cdc6b4;
+    --rule-strong: #9c9481;
+    --petrol: #1d4e4e;
+    --petrol-soft: #e4ece9;
+    --copper: #a8620f;
+    --copper-soft: #f3e6d2;
+    --alert: #8f3a2c;
+    --alert-soft: #f1e0da;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper: #171d1b;
+      --paper-raised: #1e2624;
+      --ink: #eae6da;
+      --ink-soft: #a9b3ad;
+      --rule: #3a423e;
+      --rule-strong: #565f5a;
+      --petrol: #6fb3ac;
+      --petrol-soft: #22322f;
+      --copper: #d99a4e;
+      --copper-soft: #362a1a;
+      --alert: #d98a78;
+      --alert-soft: #3a2621;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper: #171d1b;
+    --paper-raised: #1e2624;
+    --ink: #eae6da;
+    --ink-soft: #a9b3ad;
+    --rule: #3a423e;
+    --rule-strong: #565f5a;
+    --petrol: #6fb3ac;
+    --petrol-soft: #22322f;
+    --copper: #d99a4e;
+    --copper-soft: #362a1a;
+    --alert: #d98a78;
+    --alert-soft: #3a2621;
+  }
+
+  *{ box-sizing: border-box; }
+  body{
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Serif', Georgia, serif;
+    font-size: 15.5px;
+    line-height: 1.55;
+  }
+  .sheet{
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 48px 32px 72px;
+  }
+  h1, h2, .eyebrow, .tag{ font-family: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif; }
+  code, .mono, .num, td.num, th.num{ font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---- letterhead ---- */
+  .letterhead{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 3px double var(--rule-strong);
+    padding-bottom: 14px;
+    margin-bottom: 6px;
+  }
+  .doc-id{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+    text-align: right;
+    line-height: 1.6;
+  }
+  .kicker{
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--petrol);
+    margin: 0 0 6px;
+  }
+  h1{
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: 0.002em;
+    text-wrap: balance;
+    margin: 0;
+    color: var(--ink);
+  }
+  .meta-row{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 22px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 14px 0 32px;
+  }
+  .meta-row b{ color: var(--ink); font-weight: 600; }
+
+  /* ---- sections ---- */
+  section{ margin: 30px 0; }
+  .eyebrow{
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--petrol);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 7px;
+    margin: 0 0 14px;
+  }
+  p{ margin: 0 0 12px; max-width: 62ch; }
+  p:last-child{ margin-bottom: 0; }
+
+  ul.plain{ margin: 0; padding-left: 0; list-style: none; }
+  ul.plain li{
+    position: relative;
+    padding-left: 18px;
+    margin-bottom: 10px;
+    max-width: 62ch;
+  }
+  ul.plain li::before{
+    content: "—";
+    position: absolute;
+    left: 0;
+    color: var(--rule-strong);
+  }
+
+  /* ---- use case sequence ---- */
+  .usecase{
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 4px 16px;
+    padding: 14px 16px 14px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .usecase:last-of-type{ border-bottom: 1px solid var(--rule); }
+  .usecase .n{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-soft);
+    padding-top: 2px;
+  }
+  .usecase h3{
+    font-family: 'IBM Plex Sans Condensed', sans-serif;
+    font-size: 15.5px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    grid-column: 2;
+  }
+  .usecase .posture{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+  .usecase p{ grid-column: 2; margin: 0; font-size: 14.5px; color: var(--ink); }
+  .usecase.selected{
+    background: var(--copper-soft);
+    border-top-color: var(--copper);
+    border-left: 3px solid var(--copper);
+    padding-left: 13px;
+    margin: -1px -3px -1px -3px;
+  }
+  .usecase.selected .n, .usecase.selected .posture{ color: var(--copper); }
+  .tag{
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--paper-raised);
+    background: var(--copper);
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+
+  /* ---- deliverables table ---- */
+  .table-wrap{ overflow-x: auto; }
+  table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  th, td{
+    text-align: left;
+    padding: 9px 12px 9px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th{
+    font-family: 'IBM Plex Sans Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  td.component{ font-weight: 600; white-space: nowrap; }
+  .stat{ color: var(--petrol); font-weight: 600; }
+
+  /* ---- callout ---- */
+  .callout{
+    background: var(--alert-soft);
+    border-left: 3px solid var(--alert);
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+  .callout .eyebrow{ color: var(--alert); border-bottom: none; padding-bottom: 0; margin-bottom: 8px; }
+  .callout p{ margin: 0 0 8px; max-width: none; }
+  .callout p:last-child{ margin-bottom: 0; }
+
+  /* ---- sources / footer ---- */
+  .sources{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.8;
+  }
+  footer{
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+  }
+
+  @media (max-width: 560px){
+    .letterhead{ flex-direction: column; align-items: flex-start; gap: 10px; }
+    .doc-id{ text-align: left; }
+  }
+</style>
+
+<div class="sheet">
+
+  <div class="letterhead">
+    <div>
+      <p class="kicker">Capstone — Round 1 pitch brief</p>
+      <h1>Heat Pump Field Commissioning &amp; API/HEMS Connectivity Copilot</h1>
+    </div>
+    <div class="doc-id">REV&nbsp;2 · RECONCILED<br>2026-09-01</div>
+  </div>
+
+  <div class="meta-row">
+    <span>Sector: <b>HEMS / Heat Pump Technology</b></span>
+    <span>Company size: <b>Small–Medium</b></span>
+    <span>Market: <b>Germany</b></span>
+  </div>
+
+  <section>
+    <p class="eyebrow">Scenario</p>
+    <p>Chleo runs a small-to-medium manufacturer that sells a smart heat pump bundled with an app-based HEMS (Home Energy Management System) layer, entering the German market. Two field problems recur: <b>(1)</b> installers hit fault codes they can't resolve on-site without escalating to senior technicians, and <b>(2)</b> the heat pump controller's connection to the HEMS app is unreliable, so customers report "broken" units that are actually just connectivity issues — inflating support cost and eroding trust in the product.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Why this problem, why now</p>
+    <ul class="plain">
+      <li>Germany's political target is <b>500,000 heat pumps/year from 2024</b> (6M cumulative by 2030). Actual 2024 sales: only <b>~193,000 — down 46%</b>, badly missing target; BWP forecasts a recovery to ~257,000 in 2025, still short. The gap is capacity-, not demand-driven.</li>
+      <li>Reaching the 2030 target independently requires a <b>~50% uplift in the certified-installer workforce</b> (Aldersgate Group / EHPA) — a manufacturer cannot hire its way out of this; it has to make existing installers more effective per visit.</li>
+      <li>Root technical cause, industry-wide: inverter heat pumps run on <b>proprietary, non-interoperable communication protocols</b> (BACnet/Modbus/LonTalk), and rushed commissioning misses critical settings. US DOE-funded research puts this in perspective at the category level: <b>70–90% of AC/heat pump systems carry ≥1 install-related performance fault</b> — a general HVAC figure, not Germany-specific, cited for scale.</li>
+      <li>Directly grounded in a real domain discussion — Octopus Energy / Vaillant aroTHERM users publicly struggling to tell a broken unit from a HEMS-connectivity fault — not a hypothetical scenario.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow">Candidate use cases — by lifecycle stage</p>
+
+    <div class="usecase selected">
+      <div class="n">01</div>
+      <h3>Field Commissioning &amp; API/HEMS Connectivity Copilot<span class="tag">Selected · Round 1</span></h3>
+      <div class="posture">Reactive — after a fault is reported</div>
+      <p>Fault code or symptom → classify hardware fault / HEMS connectivity issue / installer error → fix guidance or escalation. The only one of the three buildable end-to-end on public + self-authored synthetic data alone.</p>
+    </div>
+
+    <div class="usecase">
+      <div class="n">02</div>
+      <h3>Commissioning-Completeness Checker</h3>
+      <div class="posture">Preventive — before sign-off</div>
+      <p>Confirms refrigerant charge, HEMS pairing, and firmware steps were completed before an installer signs off — catching the same root cause earlier. Named Round 2 companion once the flagship's fault taxonomy exists.</p>
+    </div>
+
+    <div class="usecase">
+      <div class="n">03</div>
+      <h3>COP-Drop Predictive Maintenance Copilot</h3>
+      <div class="posture">Predictive — before anyone reports anything</div>
+      <p>Flags a likely-failing unit from COP-drop trends before a complaint exists. Needs real installed-base telemetry Round 1 doesn't have — though a real German COP baseline is already on hand to define "abnormal" thresholds when this is built.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Deliverables snapshot</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Round 1 — done</th><th>Round 2 — continue</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="component">Dashboard</td>
+            <td>Tableau: first-visit fix rate <span class="num stat">69.1%</span>, false-hardware-fault rate <span class="num stat">10.9%</span>, commissioning time <span class="num stat">82&nbsp;min</span>, connectivity-failure rate by model (<span class="num stat">TF-12 at 55.9%</span> vs. 16–28% elsewhere)</td>
+            <td>Adds ROI tracking: truck-rolls avoided, cost-to-serve trend</td>
+          </tr>
+          <tr>
+            <td class="component">POC</td>
+            <td>n8n: fault code + symptom → hardware-vs-connectivity classification → fix guidance or escalation</td>
+            <td>Stronger demo with recorded walkthrough + documentation</td>
+          </tr>
+          <tr>
+            <td class="component">Monitoring</td>
+            <td>LangSmith trace sample: shows why a recommendation was given (fault-code mapping, manual section)</td>
+            <td>Extended observability tied to safety-relevant guidance</td>
+          </tr>
+          <tr>
+            <td class="component">Compliance</td>
+            <td>— (framed, not filed)</td>
+            <td>EU AI Act: limited-risk argument, human-in-the-loop for safety-critical steps; GDPR: installer + device telemetry data flows</td>
+          </tr>
+          <tr>
+            <td class="component">Strategy</td>
+            <td>Cost/timeline estimate with stated assumptions (<span class="num">€12,350</span> build, <span class="num">€110–230</span>/mo run)</td>
+            <td>ROI/risk assessment + POC → pilot → deployment plan</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Data sources</p>
+    <p><b>Public:</b> When2Heat Heating Profiles (Open Power System Data, CC BY 4.0) — real hourly German heat-pump COP/heat-demand data, 2007–2022. <b>Self-authored synthetic:</b> a 220-ticket fault-code → cause → fix-category dataset (seeded, reproducible generator), since no public dataset maps hardware-vs-connectivity directly — this gap is documented as an explicit assumption, not glossed over.</p>
+    <p style="color: var(--ink-soft); font-size: 13.5px;">Note: the originally-scoped Kaggle "Heat Pump COP Drop – Synthetic Faults" dataset could not be fetched in this build environment (Kaggle requires authenticated access even for public datasets); When2Heat was substituted as a real, no-login equivalent covering the same COP domain.</p>
+  </section>
+
+  <section class="callout">
+    <p class="eyebrow">Known risk / limitation — stated upfront</p>
+    <p>Guidance touching refrigerant/electrical commissioning steps sits near safety-critical territory — the copilot is framed as decision support with a human installer in the loop, never an autonomous fix authority.</p>
+    <p>No real customer, installer, or company data is used anywhere in Round 1; company name and figures are the assumed capstone scenario, and every dataset limitation above is disclosed rather than presented as production-grade.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Why an AI copilot, not a rule engine</p>
+    <p>The input side of this problem is messy, free-text field language — installer complaints and fault descriptions with no fixed schema, inconsistent phrasing, and mixed vocabulary between "the unit," "the app," and "the HEMS." That is exactly the terrain where natural-language understanding beats a hardcoded decision tree.</p>
+  </section>
+
+  <footer>
+    <span>Full research, data, and build docs: repo root</span>
+    <span>Prepared for Round 1 instructor review</span>
+  </footer>
+
+</div>
