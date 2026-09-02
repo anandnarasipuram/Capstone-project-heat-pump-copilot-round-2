@@ -147,7 +147,7 @@ if mode.startswith("🩺"):
     )
 
     selected_model = st.selectbox(
-        "Which unit is this?",
+        "Select a heat pump",
         MODEL_OPTIONS,
         help=(
             "Optional. Sharpens the AI's answer and lets Chleo's team see fault trends "
@@ -158,6 +158,8 @@ if mode.startswith("🩺"):
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "pending_prompt" not in st.session_state:
+        st.session_state.pending_prompt = None
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
@@ -166,7 +168,15 @@ if mode.startswith("🩺"):
             else:
                 render_assistant_card(msg)
 
+    # Read the incoming prompt (typed, or from an example-button click
+    # below) and process it *before* deciding whether to show the empty
+    # state — so a clicked example's answer never renders on the same
+    # pass as the "get started" buttons above it. See the button loop's
+    # comment below for why the buttons are defined after this block.
     prompt = st.chat_input("Describe the fault or paste a fault code, e.g. 'F532 low flow rate'…")
+    if st.session_state.pending_prompt:
+        prompt = st.session_state.pending_prompt
+        st.session_state.pending_prompt = None
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -192,13 +202,33 @@ if mode.startswith("🩺"):
             render_assistant_card(result)
         st.session_state.messages.append(result)
 
-    with st.expander("Try a worked example"):
-        st.markdown(
-            "- `Low refrigerant pressure alarm, error code E4` — instant lookup, no API key needed\n"
-            "- `Fault code F532 showing, low flow rate` — instant lookup, real Vaillant code\n"
-            "- `No comms from the outdoor unit, controller not responding` — RAG/keyword-grounded LLM classification\n"
-            "- `Smart meter gateway will not pair with the control unit` — LLM classification, no manual grounding"
-        )
+    # Empty-state guidance: the chat box above is pinned to the bottom of
+    # the screen by Streamlit regardless of where st.chat_input() is called
+    # in the script (that's not something this app can move), so on first
+    # load the page looked like empty dead space between here and the
+    # input. Clickable example prompts fill that space and double as
+    # onboarding — click one, or type your own below. Same pattern
+    # ChatGPT/Claude use on a blank chat. Checked *after* processing above,
+    # so a just-clicked example's result (now in session_state.messages)
+    # correctly hides these buttons on this same render pass, not just
+    # the next one — clicking still triggers an immediate rerun via
+    # st.rerun() so the result shows right away rather than needing a
+    # second interaction to flush the pending click.
+    if not st.session_state.messages:
+        st.markdown("#### 💬 Ask about a fault code or symptom to get started")
+        st.caption("Tap an example below, or type your own question in the box at the bottom of the screen.")
+        example_prompts = [
+            "Low refrigerant pressure alarm, error code E4",
+            "Fault code F532 showing, low flow rate",
+            "No comms from the outdoor unit, controller not responding",
+            "Smart meter gateway will not pair with the control unit",
+        ]
+        col1, col2 = st.columns(2)
+        for i, example in enumerate(example_prompts):
+            target_col = col1 if i % 2 == 0 else col2
+            if target_col.button(example, use_container_width=True, key=f"example_{i}"):
+                st.session_state.pending_prompt = example
+                st.rerun()
 
 
 # ---------------------------------------------------------------------------
