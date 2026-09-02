@@ -7,9 +7,10 @@
 
 A single Streamlit app (`app.py`), run from one `streamlit run` command. Layout:
 
-- **Header** — title, a 🔔 notification bell (opens a dropdown of the Installed Fleet Overview's current High/Medium/Low alert counts and which units they are — computed once and shared with Tab 4, not recomputed), and a static "👤 Chleo · demo profile" indicator. There's no real authentication in this MVP (stated plainly, not implied) — this is a UI placeholder for where a real user identity would sit once the app has one.
+- **Header** — title, and two matching icon-only buttons side by side: 🔔 (opens a dropdown of the Installed Fleet Overview's current High/Medium/Low alert counts and which units they are — computed once and shared with Tab 4, not recomputed) and 👤 (opens a small "Chleo · demo profile" popover). There's no real authentication in this MVP (stated plainly, not implied) — the profile icon is a UI placeholder for where a real user identity would sit once the app has one.
 - **Browser-style tabs** for navigation between the four modes (not a sidebar radio) — click a tab the way you'd click a browser tab.
-- **Sidebar** — only the collapsed "⚙️ System status" panel and the "🤝 Human-in-the-loop, by design" notice. No navigation here.
+- **Collapsible sidebar menu** — collapsed by default (Streamlit's native hamburger-style `«`/`»` toggle at the top-left opens/closes it; `initial_sidebar_state="collapsed"` in `st.set_page_config`). Contains only a "🏠 Dashboard" label and "⚙️ System status" (no nested expander — status is listed directly, label left / indicator right). No navigation lives here; that's the tab bar's job.
+- **Human-in-the-loop notice** — pinned to the bottom of the browser window via CSS (`position: fixed`), visible on every tab at all times regardless of whether the sidebar menu is open, rather than tucked inside a menu someone might never open. Same Art. 50 EU AI Act transparency disclosure as before (see [../compliance/eu_ai_act_compliance.md](../compliance/eu_ai_act_compliance.md)) — moved for visibility, not reworded.
 
 The four tabs:
 

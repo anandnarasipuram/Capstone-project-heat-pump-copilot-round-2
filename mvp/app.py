@@ -32,7 +32,9 @@ load_dotenv()
 
 from core import checklist, data_loader, fleet, llm, pipeline, predictive, rag, tracing  # noqa: E402
 
-st.set_page_config(page_title="Heat Pump Copilot", page_icon="🔧", layout="wide")
+st.set_page_config(
+    page_title="Heat Pump Copilot", page_icon="🔧", layout="wide", initial_sidebar_state="collapsed"
+)
 
 CATEGORY_LABELS = {
     "hardware_fault": "Hardware fault",
@@ -110,14 +112,16 @@ except Exception:  # noqa: BLE001 — a bad fleet load shouldn't take down the w
 
 
 # ---------------------------------------------------------------------------
-# Header — title, a notification bell (fleet alerts), a profile indicator
+# Header — title, plus a notification bell and a profile icon, side by
+# side, matching size — icon-only triggers, details live in their popovers.
 # ---------------------------------------------------------------------------
 
-header_left, header_right = st.columns([5, 1.4])
+header_left, header_bell, header_profile = st.columns([6, 0.8, 0.8])
 with header_left:
     st.title("🔧 Heat Pump Copilot")
     st.caption("Field Commissioning & HEMS Connectivity Copilot")
-with header_right:
+
+with header_bell:
     alert_total = fleet_counts["early_warning"] + fleet_counts["watch"]
     bell_label = f"🔔 {alert_total}" if alert_total else "🔔"
     with st.popover(bell_label, use_container_width=True):
@@ -134,39 +138,75 @@ with header_right:
                 .rename(columns={"unit_id": "Unit", "model": "Model"})[["Unit", "Model", "Alert"]]
             )
             st.dataframe(flagged, hide_index=True, use_container_width=True)
-    st.caption("👤 Chleo · demo profile")
+
+with header_profile:
+    with st.popover("👤", use_container_width=True):
+        st.markdown("**Chleo**")
+        st.caption("Demo profile — this MVP has no real authentication; see mvp_documentation.md.")
 
 st.divider()
 
 
 # ---------------------------------------------------------------------------
-# Sidebar — technical status + the human-in-the-loop notice, nothing else.
-# Navigation lives in the tab bar below, not here.
+# Sidebar menu — collapsed by default (Streamlit's native hamburger-style
+# toggle at the top-left handles open/close, no custom widget needed).
+# Navigation itself lives in the tab bar below, not here — this menu is
+# secondary info: where you are, and whether the app is fully configured.
 # ---------------------------------------------------------------------------
 
-# Technical status — collapsed by default so a client demo shows the
-# product, not the vendor plumbing. Check this before a demo starts, not
-# during it: expand once to confirm all 3 are green, then leave collapsed.
-with st.sidebar.expander("⚙️ System status", expanded=False):
-    st.markdown(f"{'🟢' if llm.is_configured() else '🔴'} AI classification")
-    st.markdown(f"{'🟢' if rag.is_configured() else '🟡'} Knowledge-base search")
-    st.markdown(f"{'🟢' if tracing.is_configured() else '🟡'} Interaction monitoring")
-    if not llm.is_configured():
-        st.caption("Add OPENAI_API_KEY in .env for live AI responses.")
-    if not rag.is_configured():
-        st.caption("Add PINECONE_API_KEY in .env for semantic search (falls back to keyword match otherwise).")
-    if not tracing.is_configured():
-        st.caption("Add LANGSMITH_API_KEY in .env to trace every interaction.")
+st.sidebar.markdown("### 🏠 Dashboard")
+st.sidebar.caption("All 4 modes are in the tab bar on the main screen.")
 
+st.sidebar.divider()
+
+# Technical status — no nested expander this time (the sidebar itself is
+# already the thing that expands/collapses); label left, status right.
+st.sidebar.markdown("### ⚙️ System status")
+for label, ok, ok_icon, bad_icon in [
+    ("AI classification", llm.is_configured(), "🟢", "🔴"),
+    ("Knowledge-base search", rag.is_configured(), "🟢", "🟡"),
+    ("Interaction monitoring", tracing.is_configured(), "🟢", "🟡"),
+]:
+    status_label_col, status_icon_col = st.sidebar.columns([3, 1])
+    status_label_col.write(label)
+    status_icon_col.write(ok_icon if ok else bad_icon)
+if not llm.is_configured():
+    st.sidebar.caption("Add OPENAI_API_KEY in .env for live AI responses.")
+if not rag.is_configured():
+    st.sidebar.caption("Add PINECONE_API_KEY in .env for semantic search (falls back to keyword match otherwise).")
+if not tracing.is_configured():
+    st.sidebar.caption("Add LANGSMITH_API_KEY in .env to trace every interaction.")
+
+
+# ---------------------------------------------------------------------------
 # Human-in-the-loop notice — the Art. 50 EU AI Act transparency disclosure
-# (see compliance/eu_ai_act_compliance.md), styled as a quiet trust signal
-# rather than an alarm. Present on every screen, just not shouting.
-with st.sidebar.container(border=True):
-    st.markdown("🤝 **Human-in-the-loop, by design**")
-    st.caption(
-        "Every response here is AI-suggested triage. A human installer always confirms "
-        "before acting on electrical or refrigerant work."
-    )
+# (see compliance/eu_ai_act_compliance.md). Pinned to the bottom of the
+# viewport via CSS so it's visible at all times on every tab, independent
+# of the (now collapsed-by-default) sidebar menu — it shouldn't be
+# possible to miss this by simply not opening the menu.
+# ---------------------------------------------------------------------------
+
+st.markdown(
+    """
+    <style>
+    .block-container { padding-bottom: 5rem; }
+    #hitl-footer {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 999999;
+        background: var(--secondary-background-color);
+        border-top: 1px solid rgba(128, 128, 128, 0.35);
+        padding: 0.5rem 1.5rem;
+        font-size: 0.85rem;
+        color: var(--text-color);
+        text-align: center;
+    }
+    </style>
+    <div id="hitl-footer">
+        🤝 <b>Human-in-the-loop, by design</b> — every response here is AI-suggested triage;
+        a human installer always confirms before acting on electrical or refrigerant work.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ---------------------------------------------------------------------------
