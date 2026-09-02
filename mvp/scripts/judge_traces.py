@@ -109,9 +109,17 @@ def main() -> None:
     oai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     print(f"Fetching classify_symptom runs from project '{args.project}' ...")
-    all_runs = list(ls_client.list_runs(project_name=args.project, limit=max(args.limit * 4, 50)))
+    # LangSmith's list_runs rejects a single-page `limit` above 100 (a
+    # server-side cap, hit for real with --limit 30 during development —
+    # 30*4=120 400'd). Fetch a buffer (to account for runs still missing
+    # outputs) capped at that ceiling rather than requesting exactly
+    # what's needed and hoping it's under 100.
+    fetch_limit = min(max(args.limit * 3, 20), 100)
+    all_runs = list(ls_client.list_runs(project_name=args.project, limit=fetch_limit))
     runs = [r for r in all_runs if r.name == "classify_symptom" and r.outputs][: args.limit]
     print(f"  {len(runs)} judgeable runs found (of {len(all_runs)} total runs fetched).")
+    if len(runs) == args.limit and fetch_limit == 100:
+        print(f"  (Hit the 100-run fetch ceiling — there may be more than {args.limit} available; this is a demo-scale script, not built to paginate past that.)")
 
     if not runs:
         print("Nothing to judge yet — run the app (Mode 1, a free-text symptom) to generate some traces first.")
