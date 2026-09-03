@@ -25,14 +25,14 @@ Ironhack AI Capstone, Round 2: the consulting package + working MVP that builds 
 ├── roi_risk_assessment.md          # Round 2 — costs, value, 12/36-month ROI, 8-risk matrix
 ├── strategic_plan.md               # Round 2 — POC → Pilot → Full Deployment, GTM, KPIs, commercialisation
 ├── roadmap_sprint_plan.md          # IHK certification — Q4 2026 sprint plan, user stories + AC, Definition of Done
-├── presentation.pptx               # Round 2 — final pitch deck (16 slides)
+├── presentation.pptx               # Round 2 — final pitch deck (17 slides)
 ├── poc/                             # Round 2-formatted POC docs (the Round 1 n8n workflow, re-documented)
 │   ├── poc_workflow.json
 │   └── poc_documentation.md
 ├── mvp/                             # Round 2 — required working MVP (Streamlit + LangChain + Pinecone + OpenAI)
-│   ├── app.py
-│   ├── core/                        # RAG, LLM, fault-lookup, checklist, predictive — see mvp_documentation.md
-│   ├── scripts/ingest_manuals.py
+│   ├── app.py                        # 4-page menu: Dashboard · Installed Fleet Overview · Judge Reports · System status
+│   ├── core/                        # RAG, LLM, fault-lookup, checklist, predictive, judge — see mvp_documentation.md
+│   ├── scripts/ingest_manuals.py · scripts/judge_traces.py
 │   ├── tests/                       # 20 offline unit tests, no API keys needed
 │   ├── requirements.txt · .env.example
 │   └── mvp_documentation.md
@@ -50,7 +50,7 @@ Ironhack AI Capstone, Round 2: the consulting package + working MVP that builds 
 
 ## Round 1 → Round 2, in one paragraph
 
-Round 1 built the research pack, a synthetic fault dataset, a Tableau dashboard, an n8n/Telegram POC (keyword-grounded fault triage), and a one-off LangSmith trace sample — see [feedback/round1_decision.md](feedback/round1_decision.md) for why the use case was kept unchanged. Round 2 deepens the same use case rather than starting over: the POC's keyword match becomes real embeddings-based RAG (OpenAI + Pinecone) in a working MVP that also builds out the two use-case candidates Round 1 named but didn't build (a commissioning-completeness checker and a COP-drop predictive early-warning tool), wires LangSmith into live, continuous tracing of every interaction instead of a one-off script (see [mvp/mvp_documentation.md](mvp/mvp_documentation.md), "Monitoring"), and adds the full consulting package — ROI/risk, EU AI Act + GDPR compliance, and a phased strategic deployment plan — that a real client would need before greenlighting a pilot.
+Round 1 built the research pack, a synthetic fault dataset, a Tableau dashboard, an n8n/Telegram POC (keyword-grounded fault triage), and a one-off LangSmith trace sample — see [feedback/round1_decision.md](feedback/round1_decision.md) for why the use case was kept unchanged. Round 2 deepens the same use case rather than starting over: the POC's keyword match becomes real embeddings-based RAG (OpenAI + Pinecone) in a working MVP that also builds out the two use-case candidates Round 1 named but didn't build (a commissioning-completeness checker and a COP-drop predictive early-warning tool), wires LangSmith into live, continuous tracing of every interaction instead of a one-off script (see [mvp/mvp_documentation.md](mvp/mvp_documentation.md), "Monitoring"), scores those traces for correctness/hallucination with an LLM-as-judge visible in-app on the 📊 Judge Reports page (see "LLM-as-judge evaluation"), and adds the full consulting package — ROI/risk, EU AI Act + GDPR compliance, and a phased strategic deployment plan — that a real client would need before greenlighting a pilot.
 
 ## Setup (top-level)
 

@@ -238,8 +238,8 @@ header(slide, "ROUND 2 MVP", "The upgrade: real RAG, one working app", 6)
 add_text(slide, Inches(0.7), Inches(1.85), Inches(5.7), Inches(0.4), "What changed", size=15, bold=True, color=DARK_TEAL)
 add_bullets(slide, Inches(0.7), Inches(2.3), Inches(5.7), Inches(4.2), [
     "Keyword match → OpenAI embeddings + Pinecone vector search (real RAG)",
-    "Telegram-only → a single Streamlit app, all 3 modes, one command to run",
-    "LangSmith placeholder → every interaction traced live, not a one-off script",
+    "Telegram-only → a single Streamlit app, 4-page navigation, one command to run",
+    "LangSmith placeholder → every interaction traced live, then scored by an LLM-as-judge (next slide)",
     "20 offline unit tests — deterministic logic verified with zero API keys",
     "Fails soft everywhere: missing keys degrade to a labeled fallback, never a crash",
 ], size=14, gap=12)
@@ -258,20 +258,41 @@ add_text(slide, Inches(7.1), Inches(2.6), Inches(5.2), Inches(3.7), "\n".join(pi
           size=14, color=INK, line_spacing=1.3)
 
 # ---------------------------------------------------------------------------
-# Slide 7 — Live demo
+# Slide 7 — Trust, transparency & quality assurance
+# ---------------------------------------------------------------------------
+slide = add_slide()
+header(slide, "ROUND 2 MVP", "Built to be checked, not just trusted", 7)
+add_text(slide, Inches(0.7), Inches(1.85), Inches(5.7), Inches(0.4), "Transparency, in the UI", size=15, bold=True, color=DARK_TEAL)
+add_bullets(slide, Inches(0.7), Inches(2.3), Inches(5.7), Inches(4.4), [
+    "Reasoning & Evidence panel on every response — the retrieved manual excerpt, a confidence score, one plain-language “why” — not just a verdict",
+    "Named dashboard profile (Service Operations Lead), GDPR-scoped: aggregated rates only — never a raw ticket, never an installer's name (gdpr_documentation.md §3)",
+    "Session KPI tiles + Recent Triage Activity feed — the same metrics the ops dashboard tracks, computed live, honestly labeled as this-session-only",
+], size=14, gap=14)
+add_rect(slide, Inches(6.8), Inches(1.85), Inches(5.8), Inches(4.7), WHITE)
+add_text(slide, Inches(7.1), Inches(2.05), Inches(5.2), Inches(0.4), "Quality assurance — LLM-as-judge", size=15, bold=True, color=DARK_TEAL)
+add_bullets(slide, Inches(7.1), Inches(2.55), Inches(5.2), Inches(3.9), [
+    "A second, independent LLM call scores every judged response — not the same model policing itself",
+    "correctness (0–1) against the retrieved evidence · hallucination (0–1) beyond it",
+    "Live in the app: \U0001F4CA Judge Reports page — per-trace charts, full report table, CSV export",
+    "Confirmed on real traces: 0.0 hallucination, 0.80–1.00 correctness",
+    "A judge, not a gate today — a pilot sets a review threshold (e.g. flag hallucination > 0.3) and runs this on a schedule",
+], size=13.5, color=INK, gap=11)
+
+# ---------------------------------------------------------------------------
+# Slide 8 — Live demo
 # ---------------------------------------------------------------------------
 slide = add_slide()
 fill_bg(slide, TEAL)
 add_text(slide, Inches(1), Inches(3.0), Inches(11), Inches(1), "Live Demo",
           size=44, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 add_text(slide, Inches(1), Inches(4.0), Inches(11), Inches(0.6),
-          "mvp/app.py — Fault Triage Copilot · Commissioning Checker · COP-Drop Early-Warning",
+          "mvp/app.py — Fault Triage Copilot · Commissioning Checker · COP-Drop Early-Warning · Judge Reports",
           size=16, color=RGBColor(0xCF, 0xDD, 0xDA), align=PP_ALIGN.CENTER)
 
 # ---------------------------------------------------------------------------
-# Slide 8 — Success criteria
+# Slide 9 — Success criteria
 # ---------------------------------------------------------------------------
-slide = table_slide("BUSINESS CASE", "Success criteria (pilot targets)", 8,
+slide = table_slide("BUSINESS CASE", "Success criteria (pilot targets)", 9,
     ["Metric", "Baseline (Round 1 synthetic data)", "Pilot target"],
     [
         ["First-visit fix rate", "69.1%", "≥ 79.1% (+10pp)"],
@@ -280,10 +301,10 @@ slide = table_slide("BUSINESS CASE", "Success criteria (pilot targets)", 8,
     ], col_widths=[Inches(4.5), Inches(4), Inches(3.4)])
 
 # ---------------------------------------------------------------------------
-# Slide 9 — ROI
+# Slide 10 — ROI
 # ---------------------------------------------------------------------------
 slide = add_slide()
-header(slide, "BUSINESS CASE", "ROI — central case", 9)
+header(slide, "BUSINESS CASE", "ROI — central case", 10)
 metrics = [
     ("Year 1 ROI", "≈ 241%"),
     ("36-month ROI", "≈ 1,198%"),
@@ -305,9 +326,9 @@ add_bullets(slide, Inches(0.7), Inches(5.0), Inches(11.6), Inches(1.8), [
 ], size=14, color=INK, gap=10)
 
 # ---------------------------------------------------------------------------
-# Slide 10 — Risk matrix
+# Slide 11 — Risk matrix
 # ---------------------------------------------------------------------------
-slide = table_slide("BUSINESS CASE", "Top risks (full matrix: 8 risks, 4 categories)", 10,
+slide = table_slide("BUSINESS CASE", "Top risks (full matrix: 8 risks, 4 categories)", 11,
     ["Risk", "Category", "L", "I", "Mitigation"],
     [
         ["EU AI Act boundary risk", "Regulatory", "2", "5", "Advisory-only positioning enforced by design + legal gate"],
@@ -317,10 +338,10 @@ slide = table_slide("BUSINESS CASE", "Top risks (full matrix: 8 risks, 4 categor
     ], col_widths=[Inches(3.3), Inches(1.7), Inches(0.5), Inches(0.5), Inches(5.9)], font_size=12)
 
 # ---------------------------------------------------------------------------
-# Slide 11 — EU AI Act
+# Slide 12 — EU AI Act
 # ---------------------------------------------------------------------------
 slide = add_slide()
-header(slide, "COMPLIANCE", "EU AI Act — Limited Risk", 11)
+header(slide, "COMPLIANCE", "EU AI Act — Limited Risk", 12)
 add_rect(slide, Inches(0.7), Inches(1.9), Inches(4.4), Inches(1.0), GREEN)
 add_text(slide, Inches(0.9), Inches(2.1), Inches(4.0), Inches(0.7), "LIMITED RISK", size=22, bold=True, color=WHITE)
 add_bullets(slide, Inches(0.7), Inches(3.1), Inches(5.8), Inches(3.4), [
@@ -337,10 +358,10 @@ add_text(slide, Inches(7.2), Inches(2.7), Inches(5.1), Inches(3.5),
           size=14, color=INK, line_spacing=1.3)
 
 # ---------------------------------------------------------------------------
-# Slide 12 — GDPR
+# Slide 13 — GDPR
 # ---------------------------------------------------------------------------
 slide = add_slide()
-header(slide, "COMPLIANCE", "GDPR — what changes at pilot", 12)
+header(slide, "COMPLIANCE", "GDPR — what changes at pilot", 13)
 add_bullets(slide, Inches(0.7), Inches(1.9), Inches(11.6), Inches(4.6), [
     "Round 1 + Round 2 MVP: public/synthetic data only — no real personal data processed today",
     "Pilot introduces installer-identifiable data (chat content, job records) — legal basis: legitimate interest",
@@ -350,10 +371,10 @@ add_bullets(slide, Inches(0.7), Inches(1.9), Inches(11.6), Inches(4.6), [
 ], size=16, gap=16)
 
 # ---------------------------------------------------------------------------
-# Slide 13 — Strategic plan / timeline
+# Slide 14 — Strategic plan / timeline
 # ---------------------------------------------------------------------------
 slide = add_slide()
-header(slide, "STRATEGIC PLAN", "POC → Pilot → Full Deployment", 13)
+header(slide, "STRATEGIC PLAN", "POC → Pilot → Full Deployment", 14)
 phases = [
     ("Phase 0", "POC", "Round 1 — done"),
     ("Phase 1", "MVP / Internal\nValidation", "Round 2 — done"),
@@ -379,10 +400,10 @@ add_text(slide, Inches(0.7), Inches(5.8), Inches(11.6), Inches(1.0),
           size=13, color=INK, italic=True)
 
 # ---------------------------------------------------------------------------
-# Slide 14 — GTM / commercialisation
+# Slide 15 — GTM / commercialisation
 # ---------------------------------------------------------------------------
 slide = add_slide()
-header(slide, "GO-TO-MARKET", "From internal tool to (optional) product", 14)
+header(slide, "GO-TO-MARKET", "From internal tool to (optional) product", 15)
 add_text(slide, Inches(0.7), Inches(1.85), Inches(5.6), Inches(0.4), "Phases 1–3: internal cost avoidance", size=15, bold=True, color=DARK_TEAL)
 add_bullets(slide, Inches(0.7), Inches(2.3), Inches(5.6), Inches(3.8), [
     "Buyer: Chleo, funding the field-ops budget",
@@ -397,10 +418,10 @@ add_bullets(slide, Inches(6.9), Inches(2.3), Inches(5.6), Inches(3.8), [
 ], size=14, gap=12)
 
 # ---------------------------------------------------------------------------
-# Slide 15 — The ask
+# Slide 16 — The ask
 # ---------------------------------------------------------------------------
 slide = add_slide()
-header(slide, "THE ASK", "What we need to greenlight the pilot", 15)
+header(slide, "THE ASK", "What we need to greenlight the pilot", 16)
 add_bullets(slide, Inches(0.7), Inches(1.9), Inches(11.6), Inches(4.6), [
     "Sponsor sign-off to proceed from internal validation to a 12-week pilot",
     "DPO/legal review of the short DPIA before pilot go-live",
@@ -410,7 +431,7 @@ add_bullets(slide, Inches(0.7), Inches(1.9), Inches(11.6), Inches(4.6), [
 ], size=17, gap=16)
 
 # ---------------------------------------------------------------------------
-# Slide 16 — Thank you
+# Slide 17 — Thank you
 # ---------------------------------------------------------------------------
 slide = add_slide()
 fill_bg(slide, DARK_TEAL)
