@@ -50,6 +50,8 @@ def test_try_deterministic_classify_matches_poc_worked_example():
     assert out["category"] == "hardware_fault"
     assert out["source"] == "lookup"
     assert out["confidence"] == 1.0
+    assert "E4" in out["reasoning"]
+    assert out["manual_excerpts"] == []
 
 
 def test_try_deterministic_classify_installer_error_f532():

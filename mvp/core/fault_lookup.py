@@ -131,7 +131,9 @@ def try_deterministic_classify(text: str) -> Optional[dict]:
         "category": result["category"],
         "message": result["fix_or_escalation_action"],
         "confidence": 1.0,
+        "reasoning": f"Exact match on fault code '{code}' in the manufacturer fault-code table — resolved deterministically, no AI call needed.",
         "source": "lookup",
         "fault_code": code,
         "manual_sources": [result["source"]],
+        "manual_excerpts": [],
     }

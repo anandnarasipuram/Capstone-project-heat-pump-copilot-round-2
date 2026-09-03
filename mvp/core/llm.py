@@ -39,7 +39,7 @@ Classify the installer's reported symptom into exactly one category:
 If manual excerpts are provided, treat them as authoritative over your own general knowledge, and cite them in your reasoning.
 The installer may specify which heat pump model they're working on — use it to make your guidance read as specific to their situation (e.g. referencing the model in your reply), but never invent model-specific fault codes, thresholds, or behavior that isn't actually present in the manual excerpts provided. If the model is "Not specified" or no excerpts are provided, answer from the symptom text and your general HVAC knowledge as usual.
 Reply in the same language the installer used.
-Respond ONLY as JSON: {"category": "...", "message": "concrete next-step guidance or escalation instruction, 1-3 sentences", "confidence": 0.0-1.0}
+Respond ONLY as JSON: {"category": "...", "message": "concrete next-step guidance or escalation instruction, 1-3 sentences", "confidence": 0.0-1.0, "reasoning": "ONE short plain-language sentence on why this category — not a restatement of the message, the underlying signal that pointed to it (e.g. which excerpt, which keyword in the symptom, or that no excerpt matched and this is general knowledge)"}
 Never issue autonomous repair instructions for hardware faults beyond "escalate to a certified technician" — this is advisory support for a human installer, not an autonomous action."""
 
 CHECKLIST_SYSTEM_PROMPT = """You are a commissioning sign-off assistant for a heat pump manufacturer.
@@ -120,8 +120,10 @@ def classify_symptom(
             "category": parsed["category"],
             "message": parsed["message"],
             "confidence": parsed.get("confidence"),
+            "reasoning": parsed.get("reasoning", ""),
             "source": "llm",
             "manual_sources": manual_sources,
+            "manual_excerpts": manual_excerpts,
             "ai_generated": True,
             "model": model,
         }
@@ -132,8 +134,10 @@ def classify_symptom(
         "category": "hardware_fault",
         "message": "Could not get a reliable model response — escalating to a senior technician as a safe default.",
         "confidence": 0.0,
+        "reasoning": "The model call failed or returned an unparseable response — escalating is the documented safe default, not a real classification.",
         "source": "llm",
         "manual_sources": manual_sources,
+        "manual_excerpts": manual_excerpts,
         "ai_generated": False,
         "model": model,
     }

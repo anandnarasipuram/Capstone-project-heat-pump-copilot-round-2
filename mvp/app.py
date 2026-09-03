@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import calendar
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -55,6 +57,15 @@ MODEL_OPTIONS = ["Not specified", "TF-08", "TF-12", "AS-10", "AS-16"]
 
 FLEET_FLAG_EMOJI = {"normal": "🟢", "watch": "🟡", "early_warning": "🔴"}
 FLEET_SEVERITY_TO_ALERT_LEVEL = {"early_warning": "High", "watch": "Medium", "normal": "Low"}
+
+# Round 1 baseline metric — NOT computed from this session's live traffic
+# (a single demo session has no ground truth for "was this classification
+# actually wrong," which is what false-hardware-fault means). Sourced
+# from data/synthetic_fault_dataset.csv (n=220) — the same figure the
+# Tableau dashboard's "False-Hardware-Fault Rate" sheet tracks and
+# roi_risk_assessment.md's ROI model is built on. Shown for comparison,
+# always labeled as the baseline, never presented as this session's own.
+ROUND1_BASELINE_FALSE_HARDWARE_FAULT_RATE = 10.9  # percent, see data/dataset_documentation.md
 
 
 # ---------------------------------------------------------------------------
@@ -88,10 +99,34 @@ def render_assistant_card(result: dict) -> None:
     if result.get("model") and result["model"] != "Not specified":
         st.caption(f"Model: {result['model']}")
 
-    if result.get("manual_sources"):
-        with st.expander("Manual citations"):
-            for source in result["manual_sources"]:
+    # Reasoning & Evidence — the transparency story made visible on every
+    # response, not just claimed in the footer. "Why" is a real field the
+    # LLM returns (core/llm.py's classification schema), not derived after
+    # the fact; the excerpts shown are the actual retrieval-step output
+    # (core/rag.py / core/keyword_fallback.py), not re-fetched or summarized.
+    with st.expander("🔍 Reasoning & Evidence"):
+        if result.get("reasoning"):
+            st.markdown(f"**Why:** {result['reasoning']}")
+        if confidence is not None:
+            st.progress(min(max(float(confidence), 0.0), 1.0), text=f"Confidence: {confidence:.0%}")
+        excerpts = result.get("manual_excerpts") or []
+        sources = result.get("manual_sources") or []
+        if excerpts:
+            st.markdown("**Retrieved manual evidence:**")
+            for excerpt, source in zip(excerpts, sources):
+                st.markdown(f"> {excerpt}")
+                st.caption(f"— {source}")
+        elif sources:
+            # Deterministic lookup path — no retrieval step ran; the table
+            # entry itself (cited by source name) is the evidence.
+            st.markdown("**Matched entry:**")
+            for source in sources:
                 st.write("-", source)
+        else:
+            st.caption(
+                "No manual excerpt was retrieved for this one — classified from the symptom "
+                "text and general HVAC knowledge alone."
+            )
 
     if result["source"] == "llm" and not result.get("ai_generated", True):
         st.warning(
@@ -100,6 +135,47 @@ def render_assistant_card(result: dict) -> None:
         )
 
     st.caption("_AI-suggested triage — confirm before acting._")
+
+
+def build_activity_rows(messages: list[dict], limit: int = 10) -> list[dict]:
+    """Turns this browser session's real chat history into compact
+    activity-feed rows — actual interaction data, not synthetic/demo
+    rows. `messages` alternates user/assistant in append order (see the
+    chat loop below), so pairing by index is safe. Most recent first,
+    capped at `limit`. Session-only, same limitation already stated in
+    mvp_documentation.md — nothing here is persisted across a restart."""
+    rows = []
+    for i in range(0, len(messages) - 1, 2):
+        user_msg, assistant_msg = messages[i], messages[i + 1]
+        if user_msg.get("role") != "user" or assistant_msg.get("role") != "assistant":
+            continue
+        confidence = assistant_msg.get("confidence")
+        rows.append(
+            {
+                "Time": assistant_msg.get("logged_at", "—"),
+                "Fault code": assistant_msg.get("fault_code") or "—",
+                "Classification": CATEGORY_LABELS.get(assistant_msg.get("category"), assistant_msg.get("category")),
+                "Confidence": f"{confidence:.0%}" if confidence is not None else "—",
+                "Status": "Escalated" if assistant_msg.get("category") == "hardware_fault" else "Resolved",
+            }
+        )
+    return list(reversed(rows))[:limit]
+
+
+def compute_session_kpis(messages: list[dict]) -> tuple[str, str, str]:
+    """(tickets_this_session, escalation_rate, avg_response_time) — all
+    three computed live from this session's own messages. No fabricated
+    'this week' framing: everything here is exactly what happened in the
+    current browser session, nothing more, nothing extrapolated."""
+    assistant_msgs = [m for m in messages if m.get("role") == "assistant"]
+    total = len(assistant_msgs)
+    if total == 0:
+        return "0", "—", "—"
+    escalations = sum(1 for m in assistant_msgs if m.get("category") == "hardware_fault")
+    escalation_rate = f"{escalations / total:.0%}"
+    latencies = [m["latency_s"] for m in assistant_msgs if m.get("latency_s") is not None]
+    avg_latency = f"{sum(latencies) / len(latencies):.1f}s" if latencies else "—"
+    return str(total), escalation_rate, avg_latency
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +361,33 @@ if st.session_state.active_page == "Dashboard":
             "error, and returns fix guidance or an escalation route."
         )
 
+        # KPI row — mirrors the Tableau dashboard's own metrics (see
+        # dashboard/dashboard_documentation.md), but honestly split: the
+        # first 3 are computed live from THIS session's own messages
+        # (real, small numbers — it's a demo session, not a fleet), the
+        # 4th is the Round 1 dataset baseline the dashboard itself tracks,
+        # shown for comparison and clearly labeled as such. Never blended
+        # into one misleading number.
+        _tickets, _escalation_rate, _avg_latency = compute_session_kpis(st.session_state.get("messages", []))
+        kcol1, kcol2, kcol3, kcol4 = st.columns(4)
+        kcol1.metric("Tickets this session", _tickets)
+        kcol2.metric("Escalation rate (session)", _escalation_rate)
+        kcol3.metric("Avg. response time (session)", _avg_latency)
+        kcol4.metric(
+            "False hardware-fault rate",
+            f"{ROUND1_BASELINE_FALSE_HARDWARE_FAULT_RATE}%",
+            help=(
+                "Round 1 baseline from data/synthetic_fault_dataset.csv (n=220), the same figure "
+                "the Tableau dashboard tracks — not computed from this session, which has no way "
+                "to know if a classification was actually wrong. See roi_risk_assessment.md."
+            ),
+        )
+        st.caption(
+            "First 3 reflect this live browser session only (not persisted — see mvp_documentation.md). "
+            "The 4th is the Round 1 dataset baseline, shown for comparison."
+        )
+        st.divider()
+
         selected_model = st.selectbox(
             "Select a heat pump",
             MODEL_OPTIONS,
@@ -322,6 +425,7 @@ if st.session_state.active_page == "Dashboard":
                 st.write(prompt)
 
             with st.chat_message("assistant"):
+                _turn_start = time.time()
                 try:
                     with st.spinner("Classifying…"):
                         result = pipeline.fault_triage_turn(prompt, model=selected_model)
@@ -338,8 +442,17 @@ if st.session_state.active_page == "Dashboard":
                         "model": selected_model,
                     }
                 result["role"] = "assistant"
+                result["latency_s"] = time.time() - _turn_start
+                result["logged_at"] = datetime.now().strftime("%H:%M:%S")
                 render_assistant_card(result)
             st.session_state.messages.append(result)
+            # The KPI row and the empty-state/activity-feed switch above
+            # both read st.session_state.messages earlier in this same
+            # script run — before this append — so without forcing a
+            # fresh run they'd show stale (pre-this-message) values for
+            # one turn. Same fix as the sidebar nav buttons: rerun so the
+            # next pass sees the update from the very top of the script.
+            st.rerun()
 
         # Empty-state guidance: the chat box above is pinned to the bottom of
         # the screen by Streamlit regardless of where st.chat_input() is called
@@ -368,6 +481,20 @@ if st.session_state.active_page == "Dashboard":
                 if target_col.button(example, use_container_width=True, key=f"example_{i}"):
                     st.session_state.pending_prompt = example
                     st.rerun()
+        else:
+            # Recent Triage Activity — a compact, table-form view of the
+            # same session history the chat bubbles above already show in
+            # full, so the tool reads as a live system with a record, not
+            # a single-shot demo. Real rows from this session (build_
+            # activity_rows above), not fabricated sample data.
+            st.divider()
+            st.markdown("#### 📋 Recent Triage Activity")
+            activity_rows = build_activity_rows(st.session_state.messages)
+            st.dataframe(activity_rows, use_container_width=True, hide_index=True)
+            st.caption(
+                f"Last {len(activity_rows)} of {len(st.session_state.messages) // 2} ticket(s) this session, "
+                "most recent first."
+            )
 
     # -------------------------------------------------------------------
     # Tab 2 — Commissioning-Completeness Checker (preventive)
