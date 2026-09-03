@@ -134,7 +134,20 @@ if "active_page" not in st.session_state:
 
 header_left, header_bell, header_profile = st.columns([6, 0.8, 0.8])
 with header_left:
-    st.title("🔧 Heat Pump Copilot")
+    # Two-tone brand title — plain st.title() can't color part of its text,
+    # so this replicates its exact rendered style (measured via computed
+    # style: 44px/700/line-height 52.8px, Source Sans) rather than
+    # guessing, so it drops in without a visible size/weight mismatch.
+    st.markdown(
+        """
+        <h1 style="font-size:44px; font-weight:700; line-height:52.8px;
+                   margin:0; font-family:'Source Sans', sans-serif;">
+            🔧 <span style="color:#0F172A;">Heat Pump</span>
+            <span style="color:#2563EB;">Copilot</span>
+        </h1>
+        """,
+        unsafe_allow_html=True,
+    )
     st.caption("Field Commissioning & HEMS Connectivity Copilot")
 
 with header_bell:
@@ -190,26 +203,39 @@ for page_name, icon in [
 
 
 # ---------------------------------------------------------------------------
-# Human-in-the-loop notice — the Art. 50 EU AI Act transparency disclosure
-# (see compliance/eu_ai_act_compliance.md). Pinned to the bottom of the
-# viewport via CSS so it's visible at all times on every page, independent
-# of the (now collapsed-by-default) sidebar menu — it shouldn't be
-# possible to miss this by simply not opening the menu.
+# Brand CSS — the handful of things .streamlit/config.toml's native theming
+# genuinely can't reach (button hover state, the pinned footer below).
+# Everything else (tab colors, sidebar, focus rings, status boxes) comes
+# from config.toml — see mvp_documentation.md, "Design system".
+#
+# Also renders the human-in-the-loop notice — the Art. 50 EU AI Act
+# transparency disclosure (see compliance/eu_ai_act_compliance.md).
+# Pinned to the bottom of the viewport so it's visible at all times on
+# every page, independent of the (collapsed-by-default) sidebar menu.
 # ---------------------------------------------------------------------------
 
 st.markdown(
     """
     <style>
     .block-container { padding-bottom: 5rem; }
+    .stButton > button[kind="primary"]:hover { background-color: #1D4ED8 !important; }
     #hitl-footer {
+        /* Explicit hex, not var(--secondary-background-color) — that
+           custom property resolves to fully transparent in this
+           Streamlit version (confirmed via computed style: rgba(0,0,0,0)),
+           which silently let this bar go invisible-background and
+           unreadable wherever it happened to sit over a dark surface
+           (the navy sidebar, once themed) — never caught before because
+           everything nearby used to be similarly light. */
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 999999;
-        background: var(--secondary-background-color);
-        border-top: 1px solid rgba(128, 128, 128, 0.35);
+        background: #FFFFFF;
+        border-top: 1px solid #E2E8F0;
         padding: 0.5rem 1.5rem;
         font-size: 0.85rem;
-        color: var(--text-color);
+        color: #0F172A;
         text-align: center;
     }
+    #hitl-footer b { color: #2563EB; }
     </style>
     <div id="hitl-footer">
         🤝 <b>Human-in-the-loop, by design</b> — every response here is AI-suggested triage;

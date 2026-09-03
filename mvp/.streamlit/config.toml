@@ -1,0 +1,32 @@
+# Heat Pump Copilot brand theme. See mvp_documentation.md, "Design system"
+# for the full palette this implements and why each value maps where it
+# does. Native Streamlit theming (this file) covers as much as possible —
+# tab underlines, button colors, focus rings, status boxes — so the app
+# stays correct across Streamlit upgrades; only what this genuinely can't
+# reach (button hover, the two-tone header) is patched with CSS in app.py.
+
+[theme]
+base = "light"
+primaryColor = "#2563EB"              # Primary Blue — active tabs, primary buttons, focus rings, checkboxes
+backgroundColor = "#F8FAFC"           # Page Background
+secondaryBackgroundColor = "#F8FAFC" # Input Background — text inputs, selectboxes, code blocks
+textColor = "#0F172A"                 # Primary Text
+linkColor = "#2563EB"                 # Primary Blue
+borderColor = "#E2E8F0"               # Border
+
+# Semantic status colors — drive st.success/st.error/st.warning/st.info
+# and :green[...]/:red[...]/:orange[...]/:blue[...] markdown spans.
+greenColor = "#16A34A"       # Success Green — healthy, sign-off ready
+redColor = "#DC2626"         # Error Red — actual faults only, not "selected"
+yellowColor = "#F59E0B"      # Warning Amber — attention/watch
+blueColor = "#2563EB"        # st.info() left accent
+blueBackgroundColor = "#EFF6FF"   # AI Card Background — st.info() boxes carry the AI-generated summaries
+blueTextColor = "#0F172A"         # Primary Text, for contrast on the light-blue AI card background
+
+[theme.sidebar]
+backgroundColor = "#172554"    # Sidebar Background — Primary Navy
+secondaryBackgroundColor = "#1E3A8A"  # inactive nav buttons — a lighter navy, distinguishable from the base
+textColor = "#FFFFFF"
+primaryColor = "#2563EB"       # Active menu item — Primary Blue, per the "don't use red for selected" note
+linkColor = "#06B6D4"          # AI Cyan
+borderColor = "#1E3A8A"

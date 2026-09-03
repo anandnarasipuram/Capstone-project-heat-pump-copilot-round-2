@@ -102,6 +102,30 @@ core/fault_lookup.py — regex-extract a fault code (E4, F532, F.9998, ...)
 - **COP-Drop Early-Warning** (`core/predictive.py`): aggregates the public [When2Heat Germany COP dataset](../data/dataset_documentation.md) into a monthly seasonal baseline per heat-pump profile, compares a reported reading against it, and flags `normal` / `watch` / `early_warning` by a stated percentage-deviation threshold (documented as an assumption pending real fleet data — see [../roi_risk_assessment.md](../roi_risk_assessment.md)). `core/llm.py:generate_predictive_alert()` narrates the finding.
 - **Installed Fleet Overview** (`core/fleet.py`): runs the exact same `predictive.evaluate_reading()` check across a small, hand-curated demo fleet of 18 units (see [../data/installed_fleet_documentation.md](../data/installed_fleet_documentation.md)) instead of one reading at a time — `evaluate_fleet()` computes each unit's `observed_cop` from a stored `target_deviation_pct` against the *live* baseline (never a stored raw number, so it can't drift out of sync), and `fleet_summary_counts()` rolls that up into 🟢/🟡/🔴 counts for the metrics row. `core/llm.py:generate_fleet_summary()` optionally narrates the whole fleet in one call (only when the "Generate fleet summary" button is clicked — not on every page load, to keep it cheap).
 
+## Design system
+
+A defined brand palette, not ad-hoc colors. Implemented in two layers, native theming doing as much of the work as possible so the app stays correct across Streamlit upgrades:
+
+- **`.streamlit/config.toml`** — Streamlit's own theming (`[theme]` + the separately-themeable `[theme.sidebar]` section this Streamlit version supports). Covers: page/sidebar backgrounds, primary color (drives active tab underlines, primary buttons, checkboxes, and focus rings all at once), text/border/link colors, and the semantic `red`/`green`/`yellow`/`blue` families that `st.error`/`st.success`/`st.warning`/`st.info` render with.
+- **CSS in `app.py`** — only for the handful of things config.toml can't reach: primary-button hover state, and the two-tone "Heat Pump / Copilot" header title (`st.title()` can't color part of its own text, so this is a hand-built `<h1>` matched to `st.title()`'s exact measured computed style — 44px/700/line-height 52.8px — so it doesn't visibly jump size against the rest of the app).
+
+| Token | Hex | Where it's used |
+|---|---|---|
+| Primary Navy | `#172554` | Sidebar background |
+| Primary Blue | `#2563EB` | Primary color — active tabs/buttons/focus rings, "Copilot" in the header, sidebar active menu item |
+| AI Cyan | `#06B6D4` | Sidebar link color (a light accent, not a dominant color) |
+| Success Green | `#16A34A` | `st.success()` — sign-off ready, healthy states |
+| Warning Amber | `#F59E0B` | `st.warning()` — fallback/degraded-mode notices |
+| Error Red | `#DC2626` | `st.error()` — actual faults/missing steps only, never "selected" |
+| Page Background | `#F8FAFC` | Main content area |
+| AI Card Background | `#EFF6FF` | `st.info()` — every AI-generated summary/note in the app renders in this "AI card" styling automatically |
+| Primary/Secondary Text | `#0F172A` / `#475569` | Body text / captions |
+| Border | `#E2E8F0` | Dividers, footer border |
+
+**One correction this fixed:** Streamlit's *default* theme uses a red-ish `primaryColor` (`#FF4B4B`) for active-tab underlines and `type="primary"` buttons — which meant the "Fault Triage Copilot" active tab and the sidebar's active menu button were both rendering in red before this palette was applied, easy to misread as an error/fault state rather than "currently selected." Setting `primaryColor = "#2563EB"` fixes this at the theme level for every native component at once, not just the two places it was visibly wrong.
+
+**One real bug this caught:** the pinned human-in-the-loop footer's background was set via `background: var(--secondary-background-color)`, which resolves to fully transparent in this Streamlit version — invisible before only because everything nearby happened to be similarly light; the moment the sidebar went navy, the transparency showed through as unreadable dark-on-dark text. Fixed by using an explicit hex value instead of a CSS custom property that turned out not to be reliably set.
+
 ## Monitoring — LangSmith tracing (every interaction, not a placeholder)
 
 The POC's n8n workflow has a `Log to Monitoring (LangSmith)` node that's explicitly a **placeholder** (a NoOp — see [../poc/poc_documentation.md](../poc/poc_documentation.md)), and Round 1 shipped LangSmith evidence as a separate, small [trace-sample script](../langsmith/run_trace_sample.py) run by hand. The MVP wires real, continuous tracing into the app itself instead — every fault-triage, checklist, and predictive-alert interaction produces a live LangSmith trace, so the exact prompt sent, the raw model output, latency, and token usage are all inspectable later, not just during a demo. This is what makes it possible to pull up real usage data for a discussion with Chleo (or any pilot customer) after the fact, rather than only being able to describe what the system does.
