@@ -84,6 +84,15 @@ def _chat_json(system_prompt: str, user_prompt: str) -> Optional[dict]:
         response = client.chat.completions.create(
             model=model,
             response_format={"type": "json_object"},
+            # temperature=0 — this was previously unset, defaulting to
+            # OpenAI's temperature=1.0. That's exactly what caused a real,
+            # reported bug: language selection (and likely category
+            # confidence) varying run to run on the *same* input — one
+            # English symptom got a German reply, another got Spanish,
+            # on back-to-back calls with no prompt change. Classification
+            # is not a creative task; it should be as deterministic as a
+            # non-reasoning chat model allows.
+            temperature=0.2,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
