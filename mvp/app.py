@@ -2,16 +2,18 @@
 
 Single Streamlit app covering all three use-case candidates from
 research/use_cases.md, sequenced in Round 1 as flagship + two Round 2
-companions, plus a portfolio view of the third. Navigation is a 3-item
-menu in the sidebar (Dashboard / Installed Fleet Overview / System
-status — a real page router via st.session_state.active_page, not
-decorative labels); Dashboard itself holds 3 tabs:
+companions, plus a portfolio view of the third. Navigation is a 4-item
+menu in the sidebar (Dashboard / Installed Fleet Overview / Judge
+Reports / System status — a real page router via
+st.session_state.active_page, not decorative labels); Dashboard itself
+holds 3 tabs:
 
   Dashboard (default page)
     1. 🩺 Fault Triage Copilot      — reactive, the flagship, chat-style RAG
     2. ✅ Commissioning Checker     — preventive
     3. 📉 COP-Drop Early-Warning    — predictive, single unit
   🏘️ Installed Fleet Overview       — predictive, portfolio view, its own page
+  📊 Judge Reports                  — LLM-as-judge correctness/hallucination scores, its own page
   ⚙️ System status                  — technical config status, its own page
 
 The Dashboard's Tab 1 is the core, end-to-end AI capability this MVP
@@ -27,18 +29,21 @@ Run: streamlit run app.py
 from __future__ import annotations
 
 import calendar
+import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
+import altair as alt
+import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv()
 
-from core import checklist, data_loader, fleet, llm, pipeline, predictive, rag, tracing  # noqa: E402
+from core import checklist, data_loader, fleet, judge, llm, pipeline, predictive, rag, tracing  # noqa: E402
 
 st.set_page_config(
     page_title="Heat Pump Copilot", page_icon="🔧", layout="wide", initial_sidebar_state="collapsed"
@@ -66,6 +71,15 @@ FLEET_SEVERITY_TO_ALERT_LEVEL = {"early_warning": "High", "watch": "Medium", "no
 # roi_risk_assessment.md's ROI model is built on. Shown for comparison,
 # always labeled as the baseline, never presented as this session's own.
 ROUND1_BASELINE_FALSE_HARDWARE_FAULT_RATE = 10.9  # percent, see data/dataset_documentation.md
+
+# Same status tokens as .streamlit/config.toml (Success Green / Warning
+# Amber / Error Red) — reused here, not reinvented, so the Judge Reports
+# charts read as the same design system as the rest of the app. "Concern"
+# deliberately avoids the word "fault" — that already means something
+# specific in this app (a hardware fault), and a low-correctness or
+# high-hallucination judge score is a QA signal, not that category.
+JUDGE_STATUS_COLORS = {"Good": "#16A34A", "Caution": "#F59E0B", "Concern": "#DC2626"}
+JUDGE_STATUS_DOMAIN = ["Good", "Caution", "Concern"]
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +174,77 @@ def build_activity_rows(messages: list[dict], limit: int = 10) -> list[dict]:
             }
         )
     return list(reversed(rows))[:limit]
+
+
+def _correctness_status(score: float) -> str:
+    """1.0 = fully correct (see core/judge.py's prompt) — high is good."""
+    if score >= 0.8:
+        return "Good"
+    if score >= 0.5:
+        return "Caution"
+    return "Concern"
+
+
+def _hallucination_status(score: float) -> str:
+    """0.0 = nothing fabricated (see core/judge.py's prompt) — low is good,
+    the inverse banding of correctness."""
+    if score <= 0.2:
+        return "Good"
+    if score <= 0.5:
+        return "Caution"
+    return "Concern"
+
+
+def build_judge_chart(rows: list[dict], score_key: str, status_fn, axis_title: str) -> alt.Chart:
+    """One bar per judged trace, oldest→newest left to right, colored by
+    QA status (Good/Caution/Concern — see JUDGE_STATUS_COLORS, the same
+    Success Green / Warning Amber / Error Red tokens as the rest of the
+    app). Real per-trace scores from core/judge.py, not synthetic —
+    hovering a bar shows exactly which symptom and why the judge scored
+    it that way."""
+    data = pd.DataFrame(rows).reset_index().rename(columns={"index": "order"})
+    data["status"] = data[score_key].apply(status_fn)
+    data["Symptom"] = data["symptom"].astype(str).str.slice(0, 90)
+    # A true 0.0 (no hallucination at all — the *good* outcome) renders as
+    # a zero-height bar, indistinguishable from missing data. Give it a
+    # thin visible sliver on its own column so "scored, and scored well"
+    # never looks like "nothing here" — the tooltip still shows the real
+    # 0.00 value, only the bar's rendered height is floored.
+    data["_display"] = data[score_key].apply(lambda v: max(v, 0.02))
+    return (
+        alt.Chart(data)
+        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, size=18)
+        .encode(
+            x=alt.X(
+                "order:O",
+                title="Judged trace (oldest → most recent)",
+                axis=alt.Axis(labels=False, ticks=False, domainColor="#E2E8F0"),
+            ),
+            y=alt.Y(
+                "_display:Q",
+                title=axis_title,
+                scale=alt.Scale(domain=[0, 1]),
+                axis=alt.Axis(
+                    gridColor="#E2E8F0", gridDash=[2, 2], domainColor="#E2E8F0",
+                    tickColor="#E2E8F0", labelColor="#64748B", titleColor="#64748B",
+                ),
+            ),
+            color=alt.Color(
+                "status:N",
+                title="QA status",
+                scale=alt.Scale(domain=JUDGE_STATUS_DOMAIN, range=[JUDGE_STATUS_COLORS[s] for s in JUDGE_STATUS_DOMAIN]),
+                legend=alt.Legend(orient="top", title=None),
+            ),
+            tooltip=[
+                alt.Tooltip("Symptom:N", title="Symptom"),
+                alt.Tooltip("category:N", title="AI classification"),
+                alt.Tooltip(f"{score_key}:Q", title=axis_title, format=".2f"),
+                alt.Tooltip("reasoning:N", title="Judge's reasoning"),
+            ],
+        )
+        .properties(height=220)
+        .configure_view(strokeWidth=0)
+    )
 
 
 def compute_session_kpis(messages: list[dict]) -> tuple[str, str, str]:
@@ -265,6 +350,7 @@ st.sidebar.markdown("### Menu")
 for page_name, icon in [
     ("Dashboard", "🏠"),
     ("Installed Fleet Overview", "🏘️"),
+    ("Judge Reports", "📊"),
     ("System status", "⚙️"),
 ]:
     is_active = st.session_state.active_page == page_name
@@ -667,12 +753,136 @@ elif st.session_state.active_page == "Installed Fleet Overview":
 
 
 # ---------------------------------------------------------------------------
+# Page: Judge Reports — real LLM-as-judge correctness/hallucination scores
+# over live LangSmith traces (core/judge.py, shared with
+# scripts/judge_traces.py so neither can drift from the other).
+#
+# What this deliberately is NOT: a general AI-governance "pattern scan"
+# across invented dimensions (strategy fit, UX timing, workflow impact,
+# etc.) — that needs an audit method this app has no way to compute
+# honestly. What it IS: the two dimensions a second LLM call can actually
+# assess from a trace's own inputs/outputs — correctness against the
+# retrieved manual evidence, and hallucination beyond it — charted from
+# real judged traces, not synthetic numbers. See mvp_documentation.md,
+# "Judge Reports page".
+# ---------------------------------------------------------------------------
+
+elif st.session_state.active_page == "Judge Reports":
+    st.header("📊 Judge Reports")
+    st.caption(
+        "LLM-as-judge scores for real Fault Triage traces — a second, independent model call "
+        "reviews each classification against the manual evidence it had access to and scores "
+        "correctness and hallucination. Same evaluator as scripts/judge_traces.py; scores are "
+        "also posted back to LangSmith as feedback on each trace."
+    )
+
+    if not tracing.is_configured():
+        st.warning("⚠️ LANGSMITH_API_KEY is not set — nothing to report. See System status.")
+    elif not llm.is_configured():
+        st.warning("⚠️ OPENAI_API_KEY is not set — the judge itself is an LLM call. See System status.")
+    else:
+        project = os.environ.get("LANGSMITH_PROJECT", tracing.DEFAULT_PROJECT)
+
+        if "judge_report_rows" not in st.session_state:
+            st.session_state.judge_report_rows = None
+
+        control_col, refresh_col, spacer_col = st.columns([2, 1, 3])
+        with control_col:
+            judge_limit = st.number_input(
+                "Traces to judge", min_value=1, max_value=30, value=10, step=1,
+                help="Judges the N most recent classify_symptom traces that don't already have a judge score.",
+            )
+            if st.button("▶️ Run judge on recent traces", type="primary"):
+                from langsmith import Client
+                from openai import OpenAI
+
+                try:
+                    with st.spinner(f"Judging up to {judge_limit} recent traces…"):
+                        ls_client = Client()
+                        oai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+                        judge.run_judge_batch(ls_client, oai_client, project, int(judge_limit))
+                        st.session_state.judge_report_rows = judge.fetch_judged_results(ls_client, project, run_limit=30)
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Judging failed: {exc}")
+                else:
+                    st.rerun()
+        with refresh_col:
+            st.write("")  # vertical align with the button above
+            st.write("")
+            if st.button("🔄 Refresh"):
+                st.session_state.judge_report_rows = None
+                st.rerun()
+
+        if st.session_state.judge_report_rows is None:
+            try:
+                from langsmith import Client
+
+                with st.spinner("Loading existing judge scores…"):
+                    st.session_state.judge_report_rows = judge.fetch_judged_results(Client(), project, run_limit=30)
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Could not load judge scores from LangSmith: {exc}")
+                st.session_state.judge_report_rows = []
+
+        rows = st.session_state.judge_report_rows or []
+
+        if not rows:
+            st.info(
+                "No judged traces yet. Click **▶️ Run judge on recent traces** above, or run "
+                "`python scripts/judge_traces.py` from the command line, after generating some "
+                "Fault Triage traffic on the Dashboard."
+            )
+        else:
+            chart_rows = list(reversed(rows))  # oldest → newest, left to right
+            avg_correctness = sum(r["correctness"] for r in rows) / len(rows)
+            avg_hallucination = sum(r["hallucination"] for r in rows) / len(rows)
+
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Traces judged", len(rows))
+            m2.metric(
+                f"Avg. correctness {'🟢' if _correctness_status(avg_correctness) == 'Good' else '🟡' if _correctness_status(avg_correctness) == 'Caution' else '🔴'}",
+                f"{avg_correctness:.0%}",
+            )
+            m3.metric(
+                f"Avg. hallucination {'🟢' if _hallucination_status(avg_hallucination) == 'Good' else '🟡' if _hallucination_status(avg_hallucination) == 'Caution' else '🔴'}",
+                f"{avg_hallucination:.0%}",
+                help="Low is good — the share of each response the judge flagged as not grounded in evidence or reasonable domain knowledge.",
+            )
+
+            st.markdown("**Correctness per trace**")
+            st.altair_chart(build_judge_chart(chart_rows, "correctness", _correctness_status, "Correctness"), use_container_width=True)
+
+            st.markdown("**Hallucination per trace**")
+            st.altair_chart(build_judge_chart(chart_rows, "hallucination", _hallucination_status, "Hallucination"), use_container_width=True)
+
+            with st.expander("📋 Full report (table + CSV export)"):
+                report_df = pd.DataFrame(rows)[
+                    ["started_at", "symptom", "category", "correctness", "hallucination", "reasoning"]
+                ].rename(
+                    columns={
+                        "started_at": "Time", "symptom": "Symptom", "category": "Classification",
+                        "correctness": "Correctness", "hallucination": "Hallucination", "reasoning": "Judge's reasoning",
+                    }
+                )
+                st.dataframe(report_df, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "⬇️ Download as CSV",
+                    report_df.to_csv(index=False).encode("utf-8"),
+                    file_name="judge_report.csv",
+                    mime="text/csv",
+                )
+
+    st.caption(
+        "_AI judging AI — an independent quality signal, not a substitute for human review of low-scoring traces._"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Page: System status — technical configuration status, its own page now
 # (was inline sidebar content; pulled out so the sidebar menu is just
 # navigation, and this is read like any other page).
 # ---------------------------------------------------------------------------
 
-else:
+elif st.session_state.active_page == "System status":
     st.header("⚙️ System status")
     st.caption("Technical configuration status for the AI capabilities behind this app.")
 

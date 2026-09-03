@@ -3,6 +3,7 @@
 
 streamlit>=1.38
 pandas>=2.2
+altair>=5.0          # Judge Reports page charts (already a Streamlit dependency, pinned here since app.py imports it directly)
 python-dotenv>=1.0.1
 
 # Core AI capability: OpenAI classification + embeddings, via LangChain,

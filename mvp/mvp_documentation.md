@@ -1,16 +1,17 @@
 # MVP Documentation — Heat Pump Copilot
 
 > Round 2 required deliverable: *"a functional product beyond the POC... the core AI capability has to actually run."*
-> Builds directly on the Round 1 n8n POC — see [../poc/poc_documentation.md](../poc/poc_documentation.md) — and on all three use-case candidates scoped in [../research/use_cases.md](../research/use_cases.md), which this MVP implements as one small app with a real 3-page menu rather than three separate half-built products (Installed Fleet Overview is a portfolio view of the predictive candidate — see below).
+> Builds directly on the Round 1 n8n POC — see [../poc/poc_documentation.md](../poc/poc_documentation.md) — and on all three use-case candidates scoped in [../research/use_cases.md](../research/use_cases.md), which this MVP implements as one small app with a real 4-page menu rather than three separate half-built products (Installed Fleet Overview is a portfolio view of the predictive candidate — see below).
 
 ## What this is
 
 A single Streamlit app (`app.py`), run from one `streamlit run` command. Layout:
 
 - **Header** — title, and two matching icon-only buttons side by side: 🔔 (opens a dropdown of the Installed Fleet Overview page's current High/Medium/Low alert counts and which units they are — computed once and shared with that page, not recomputed) and 👤 (opens a small "Chleo · demo profile" popover). There's no real authentication in this MVP (stated plainly, not implied) — the profile icon is a UI placeholder for where a real user identity would sit once the app has one.
-- **Collapsible sidebar menu** — collapsed by default (Streamlit's native hamburger-style `«`/`»` toggle at the top-left opens/closes it; `initial_sidebar_state="collapsed"` in `st.set_page_config`). A real page router (`st.session_state.active_page`), not decorative labels — 3 selectable buttons, the current page shown filled (`type="primary"`):
+- **Collapsible sidebar menu** — collapsed by default (Streamlit's native hamburger-style `«`/`»` toggle at the top-left opens/closes it; `initial_sidebar_state="collapsed"` in `st.set_page_config`). A real page router (`st.session_state.active_page`), not decorative labels — 4 selectable buttons, the current page shown filled (`type="primary"`):
   - **🏠 Dashboard** (default) — the 3 operational tools, as browser-style tabs
   - **🏘️ Installed Fleet Overview** — its own full page, not nested in the tab bar
+  - **📊 Judge Reports** — its own full page, LLM-as-judge correctness/hallucination scores over live traces — see "Judge Reports page" below
   - **⚙️ System status** — its own full page (label left / indicator right per row, no nested expander)
 - **Human-in-the-loop notice** — pinned to the bottom of the browser window via CSS (`position: fixed`), visible on every page at all times regardless of menu state, rather than tucked inside a menu someone might never open. Same Art. 50 EU AI Act transparency disclosure as before (see [../compliance/eu_ai_act_compliance.md](../compliance/eu_ai_act_compliance.md)) — moved for visibility, not reworded.
 
@@ -184,6 +185,20 @@ python scripts/judge_traces.py --limit 50
 Scores are posted back to the *original* trace via `Client.create_feedback` — they show up as `llm_judge_correctness` / `llm_judge_hallucination` feedback right next to each run in the LangSmith UI, not in a separate report disconnected from the traces themselves. **Confirmed live**: run against this project's own real traces (including free-text German-language symptoms), it correctly scored 5/5 runs, all with `hallucination = 0.0` and `correctness` between 0.80–1.00, with per-run reasoning explaining each score (e.g. flagging one response as slightly incomplete rather than wrong, rather than either rubber-stamping or over-penalizing it).
 
 This is a judge, not a gate — nothing in the app currently blocks on these scores. A pilot would set a review threshold (e.g. flag any run scoring `hallucination > 0.3` for manual review) and run this on a schedule rather than by hand; that's named here as the natural next step, not built into this script.
+
+### Judge Reports page (`app.py`, menu → 📊 Judge Reports)
+
+The judging logic above moved into `core/judge.py` so it has two callers instead of one: the CLI script (`scripts/judge_traces.py`, now a thin wrapper) and a 4th sidebar page in the app itself — a **▶️ Run judge on recent traces** button plus two charts, so scores are visible without leaving the app or reading LangSmith's UI.
+
+This came from a direct comparison: a colleague's AI-audit tool renders a radar ("Pattern Scan") across six invented governance dimensions — Strategy, Accuracy, UX Timing, Workflow, and so on — each PASS/RISK/FAIL. That's a different tool for a different domain (a legal-classification-agent audit), and reproducing its exact dimensions here would mean fabricating scores this app has no way to actually compute. What's reused instead is the *shape* of the idea — a reports view with a real findings chart — built on the two dimensions this app's own judge can honestly assess:
+
+- **Correctness per trace** and **Hallucination per trace** — bar charts, one bar per judged `classify_symptom` run, oldest→newest, colored by QA status (🟢 Good / 🟡 Caution / 🔴 Concern — the same Success Green / Warning Amber / Error Red tokens used everywhere else in the app, not a new palette). Hovering a bar shows the symptom, the AI's category, the exact score, and the judge's own one-line reasoning.
+- Summary tiles (traces judged, average correctness, average hallucination) and a **Full report** expander — the underlying table plus a CSV download — the closest honest equivalent to the colleague's tool's "Full report" link.
+- A **🔄 Refresh** button re-reads existing LangSmith feedback (no new judge-model calls, free); **▶️ Run judge on recent traces** judges up to N (default 10, capped at 30) un-scored recent traces live, posting feedback to LangSmith exactly like the CLI script, then reloads the report.
+
+**Confirmed live**: ran end-to-end through the actual UI (not just the CLI) — judged 3 real recent traces (including the German `"Die Vorlauftemperatur ist niedrig"` symptom), got `avg. correctness = 83%`, `avg. hallucination = 0%`, both charts and the CSV-exportable table populated with the real per-trace scores and reasoning, and a fresh page load afterwards picked the same 3 scored traces straight back up from LangSmith (this page has no local storage of its own — every score shown is either just-computed or freshly re-read from LangSmith's feedback API). One chart-rendering issue was caught and fixed during that same live check: a true `hallucination = 0.0` (the *good* outcome) rendered as a zero-height bar, indistinguishable from no data — fixed with a floored display height (the tooltip still reports the real `0.00`).
+
+What this page deliberately does **not** claim to be: a general AI-governance audit tool. It scores exactly the two dimensions a second LLM call can actually assess from a trace's own inputs and outputs — nothing about "strategy fit" or "validated user need," which would need a different kind of evaluation (product/business judgment, not a QA read of one response) that this app has no data to back.
 
 ## How to run it
 
