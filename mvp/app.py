@@ -219,6 +219,21 @@ st.markdown(
     <style>
     .block-container { padding-bottom: 5rem; }
     .stButton > button[kind="primary"]:hover { background-color: #1D4ED8 !important; }
+    /* The chat input's background (#F8FAFC, per the Input Background
+       token) is nearly identical to the page background it sits on —
+       fine in isolation, but it made the one box every visit to this
+       tab exists to get you typing into nearly invisible. A visible
+       border fixes that without changing the token itself. */
+    [data-testid="stChatInput"] {
+        border: 2px solid #2563EB;
+        border-radius: 12px;
+        background: #FFFFFF;
+        box-shadow: 0 1px 4px rgba(37, 99, 235, 0.18);
+    }
+    [data-testid="stChatInput"]:focus-within {
+        border-color: #1D4ED8;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    }
     #hitl-footer {
         /* Explicit hex, not var(--secondary-background-color) — that
            custom property resolves to fully transparent in this
