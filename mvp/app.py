@@ -2,19 +2,25 @@
 
 Single Streamlit app covering all three use-case candidates from
 research/use_cases.md, sequenced in Round 1 as flagship + two Round 2
-companions, plus a portfolio view of the third:
+companions, plus a portfolio view of the third. Navigation is a 3-item
+menu in the sidebar (Dashboard / Installed Fleet Overview / System
+status — a real page router via st.session_state.active_page, not
+decorative labels); Dashboard itself holds 3 tabs:
 
-  1. 🩺 Fault Triage Copilot      — reactive, the flagship, chat-style RAG
-  2. ✅ Commissioning Checker     — preventive
-  3. 📉 COP-Drop Early-Warning    — predictive, single unit
-  4. 🏠 Installed Fleet Overview  — predictive, portfolio view
+  Dashboard (default page)
+    1. 🩺 Fault Triage Copilot      — reactive, the flagship, chat-style RAG
+    2. ✅ Commissioning Checker     — preventive
+    3. 📉 COP-Drop Early-Warning    — predictive, single unit
+  🏘️ Installed Fleet Overview       — predictive, portfolio view, its own page
+  ⚙️ System status                  — technical config status, its own page
 
-Tab 1 is the core, end-to-end AI capability this MVP exists to prove:
-fault-code lookup (deterministic, zero cost) → Pinecone RAG over the
-manual knowledge base (real embeddings, the Round 2 upgrade from the
-POC's keyword match) → OpenAI classification, grounded in whatever the
-retrieval step found. See mvp_documentation.md for the full architecture,
-what "runs" means with vs. without API keys, and how to reproduce.
+The Dashboard's Tab 1 is the core, end-to-end AI capability this MVP
+exists to prove: fault-code lookup (deterministic, zero cost) →
+Pinecone RAG over the manual knowledge base (real embeddings, the
+Round 2 upgrade from the POC's keyword match) → OpenAI classification,
+grounded in whatever the retrieval step found. See mvp_documentation.md
+for the full architecture, what "runs" means with vs. without API keys,
+and how to reproduce.
 
 Run: streamlit run app.py
 """
@@ -98,7 +104,7 @@ def render_assistant_card(result: dict) -> None:
 
 # ---------------------------------------------------------------------------
 # Fleet status — computed once, shared by the header notification bell and
-# the Installed Fleet Overview tab, so both always agree and neither
+# the Installed Fleet Overview page, so both always agree and neither
 # recomputes it separately.
 # ---------------------------------------------------------------------------
 
@@ -109,6 +115,16 @@ try:
     fleet_counts = fleet.fleet_summary_counts(fleet_evaluated)
 except Exception:  # noqa: BLE001 — a bad fleet load shouldn't take down the whole app
     fleet_evaluated, fleet_counts = None, {"normal": 0, "watch": 0, "early_warning": 0}
+
+
+# ---------------------------------------------------------------------------
+# Navigation state — which of the 3 menu pages is showing. The sidebar
+# menu's buttons are the only writer of this; everything else just reads
+# it. Single source of truth for what the main content area renders.
+# ---------------------------------------------------------------------------
+
+if "active_page" not in st.session_state:
+    st.session_state.active_page = "Dashboard"
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +142,7 @@ with header_bell:
     bell_label = f"🔔 {alert_total}" if alert_total else "🔔"
     with st.popover(bell_label, use_container_width=True):
         st.markdown("**Fleet alerts**")
-        st.caption("From the Installed Fleet Overview tab — synthetic demo fleet, not real telemetry.")
+        st.caption("From the Installed Fleet Overview page (menu, top-left) — synthetic demo fleet, not real telemetry.")
         st.markdown(f"🔴 High — {fleet_counts['early_warning']} unit(s) need inspection now")
         st.markdown(f"🟡 Medium — {fleet_counts['watch']} unit(s) to monitor")
         st.markdown(f"🟢 Low — {fleet_counts['normal']} unit(s) normal")
@@ -150,38 +166,33 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Sidebar menu — collapsed by default (Streamlit's native hamburger-style
 # toggle at the top-left handles open/close, no custom widget needed).
-# Navigation itself lives in the tab bar below, not here — this menu is
-# secondary info: where you are, and whether the app is fully configured.
+# Three real, selectable navigation buttons — clicking one changes what
+# the main content area renders (st.session_state.active_page), the
+# currently-selected one shown filled (type="primary") so it's obvious
+# which page you're on.
 # ---------------------------------------------------------------------------
 
-st.sidebar.markdown("### 🏠 Dashboard")
-st.sidebar.caption("All 4 modes are in the tab bar on the main screen.")
-
-st.sidebar.divider()
-
-# Technical status — no nested expander this time (the sidebar itself is
-# already the thing that expands/collapses); label left, status right.
-st.sidebar.markdown("### ⚙️ System status")
-for label, ok, ok_icon, bad_icon in [
-    ("AI classification", llm.is_configured(), "🟢", "🔴"),
-    ("Knowledge-base search", rag.is_configured(), "🟢", "🟡"),
-    ("Interaction monitoring", tracing.is_configured(), "🟢", "🟡"),
+st.sidebar.markdown("### Menu")
+for page_name, icon in [
+    ("Dashboard", "🏠"),
+    ("Installed Fleet Overview", "🏘️"),
+    ("System status", "⚙️"),
 ]:
-    status_label_col, status_icon_col = st.sidebar.columns([3, 1])
-    status_label_col.write(label)
-    status_icon_col.write(ok_icon if ok else bad_icon)
-if not llm.is_configured():
-    st.sidebar.caption("Add OPENAI_API_KEY in .env for live AI responses.")
-if not rag.is_configured():
-    st.sidebar.caption("Add PINECONE_API_KEY in .env for semantic search (falls back to keyword match otherwise).")
-if not tracing.is_configured():
-    st.sidebar.caption("Add LANGSMITH_API_KEY in .env to trace every interaction.")
+    is_active = st.session_state.active_page == page_name
+    if st.sidebar.button(
+        f"{icon} {page_name}",
+        key=f"nav_{page_name}",
+        use_container_width=True,
+        type="primary" if is_active else "secondary",
+    ):
+        st.session_state.active_page = page_name
+        st.rerun()
 
 
 # ---------------------------------------------------------------------------
 # Human-in-the-loop notice — the Art. 50 EU AI Act transparency disclosure
 # (see compliance/eu_ai_act_compliance.md). Pinned to the bottom of the
-# viewport via CSS so it's visible at all times on every tab, independent
+# viewport via CSS so it's visible at all times on every page, independent
 # of the (now collapsed-by-default) sidebar menu — it shouldn't be
 # possible to miss this by simply not opening the menu.
 # ---------------------------------------------------------------------------
@@ -210,231 +221,231 @@ st.markdown(
 
 
 # ---------------------------------------------------------------------------
-# Tabs — browser-style navigation instead of a sidebar radio
+# Page: Dashboard — browser-style tabs for the 3 operational tools
 # ---------------------------------------------------------------------------
 
-tab_triage, tab_checklist, tab_predictive, tab_fleet = st.tabs(
-    [
-        "🩺 Fault Triage Copilot",
-        "✅ Commissioning Checker",
-        "📉 COP-Drop Early-Warning",
-        "🏠 Installed Fleet Overview",
-    ]
-)
-
-
-# ---------------------------------------------------------------------------
-# Tab 1 — Fault Triage Copilot (flagship, chat-style RAG)
-# ---------------------------------------------------------------------------
-
-with tab_triage:
-    st.caption(
-        "An installer enters a fault code or symptom. The copilot classifies it as a "
-        "hardware fault, a HEMS connectivity/pairing issue, or an installer/commissioning "
-        "error, and returns fix guidance or an escalation route."
-    )
-
-    selected_model = st.selectbox(
-        "Select a heat pump",
-        MODEL_OPTIONS,
-        help=(
-            "Optional. Sharpens the AI's answer and lets Chleo's team see fault trends "
-            "by model over time — it doesn't currently filter which fault codes are "
-            "recognized, since today's manual knowledge base isn't split per model."
-        ),
-    )
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    if "pending_prompt" not in st.session_state:
-        st.session_state.pending_prompt = None
-
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            if msg["role"] == "user":
-                st.write(msg["content"])
-            else:
-                render_assistant_card(msg)
-
-    # Read the incoming prompt (typed, or from an example-button click
-    # below) and process it *before* deciding whether to show the empty
-    # state — so a clicked example's answer never renders on the same
-    # pass as the "get started" buttons above it. See the button loop's
-    # comment below for why the buttons are defined after this block.
-    prompt = st.chat_input("Describe the fault or paste a fault code, e.g. 'F532 low flow rate'…")
-    if st.session_state.pending_prompt:
-        prompt = st.session_state.pending_prompt
-        st.session_state.pending_prompt = None
-    if prompt:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-
-        with st.chat_message("assistant"):
-            try:
-                with st.spinner("Classifying…"):
-                    result = pipeline.fault_triage_turn(prompt, model=selected_model)
-            except Exception as exc:  # noqa: BLE001 — last-resort guard so the chat never hard-crashes
-                st.error(f"Something went wrong processing that message: {exc}")
-                result = {
-                    "role": "assistant",
-                    "category": "hardware_fault",
-                    "message": "An internal error occurred — escalating to a senior technician as a safe default.",
-                    "source": "llm",
-                    "confidence": 0.0,
-                    "manual_sources": [],
-                    "ai_generated": False,
-                    "model": selected_model,
-                }
-            result["role"] = "assistant"
-            render_assistant_card(result)
-        st.session_state.messages.append(result)
-
-    # Empty-state guidance: the chat box above is pinned to the bottom of
-    # the screen by Streamlit regardless of where st.chat_input() is called
-    # in the script (that's not something this app can move), so on first
-    # load the page looked like empty dead space between here and the
-    # input. Clickable example prompts fill that space and double as
-    # onboarding — click one, or type your own below. Same pattern
-    # ChatGPT/Claude use on a blank chat. Checked *after* processing above,
-    # so a just-clicked example's result (now in session_state.messages)
-    # correctly hides these buttons on this same render pass, not just
-    # the next one — clicking still triggers an immediate rerun via
-    # st.rerun() so the result shows right away rather than needing a
-    # second interaction to flush the pending click.
-    if not st.session_state.messages:
-        st.markdown("#### 💬 Ask about a fault code or symptom to get started")
-        st.caption("Tap an example below, or type your own question in the box at the bottom of the screen.")
-        example_prompts = [
-            "Low refrigerant pressure alarm, error code E4",
-            "Fault code F532 showing, low flow rate",
-            "No comms from the outdoor unit, controller not responding",
-            "Smart meter gateway will not pair with the control unit",
+if st.session_state.active_page == "Dashboard":
+    tab_triage, tab_checklist, tab_predictive = st.tabs(
+        [
+            "🩺 Fault Triage Copilot",
+            "✅ Commissioning Checker",
+            "📉 COP-Drop Early-Warning",
         ]
-        ex_col1, ex_col2 = st.columns(2)
-        for i, example in enumerate(example_prompts):
-            target_col = ex_col1 if i % 2 == 0 else ex_col2
-            if target_col.button(example, use_container_width=True, key=f"example_{i}"):
-                st.session_state.pending_prompt = example
-                st.rerun()
-
-
-# ---------------------------------------------------------------------------
-# Tab 2 — Commissioning-Completeness Checker (preventive)
-# ---------------------------------------------------------------------------
-
-with tab_checklist:
-    st.caption(
-        "Confirms required commissioning steps were actually completed before an installer "
-        "signs off a job — catching the problem before it becomes a fault ticket. Each item "
-        "cites the fault code it would otherwise surface as later."
     )
 
-    with st.form("checklist_form"):
-        col1, col2 = st.columns(2)
-        model = col1.text_input("Model", value="TF-12")
-        firmware = col2.text_input("Firmware version", value="3.0.0")
+    # -------------------------------------------------------------------
+    # Tab 1 — Fault Triage Copilot (flagship, chat-style RAG)
+    # -------------------------------------------------------------------
 
-        responses = {}
-        for item in checklist.CHECKLIST_ITEMS:
-            help_text = f"Unconfirmed → risks surfacing as {item['manual_ref']}" if item["manual_ref"] else None
-            label = item["label"] + ("" if item["required"] else " (optional)")
-            responses[item["key"]] = st.checkbox(label, help=help_text)
-
-        submitted = st.form_submit_button("Evaluate")
-
-    if submitted:
-        try:
-            with st.spinner("Evaluating…"):
-                turn = pipeline.commissioning_turn(model, firmware, responses)
-            result, summary = turn["checklist"], turn["summary"]
-        except Exception as exc:  # noqa: BLE001
-            st.error(f"Could not evaluate this checklist: {exc}")
-            result, summary = None, None
-
-        if result:
-            col1, col2 = st.columns(2)
-            col1.metric("Completeness", f"{result['completeness_pct']}%")
-            col2.metric("Sign-off ready", "Yes" if result["sign_off_ready"] else "No")
-
-            if result["sign_off_ready"]:
-                st.success("All required steps confirmed. Ready to sign off.")
-            else:
-                st.error(f"{len(result['missing_required'])} required step(s) outstanding:")
-                for item in result["missing_required"]:
-                    ref = f" — risks surfacing as **{item['manual_ref']}**" if item["manual_ref"] else ""
-                    st.write(f"- {item['label']}{ref}")
-
-        if summary:
-            st.info(summary["summary"])
-            if not summary["ai_generated"]:
-                st.caption("⚠️ Deterministic summary (no live model response) — add OPENAI_API_KEY for an AI-generated one.")
-
-
-# ---------------------------------------------------------------------------
-# Tab 3 — COP-Drop Predictive Early-Warning (single unit)
-# ---------------------------------------------------------------------------
-
-with tab_predictive:
-    st.caption(
-        "Compares a reported coefficient-of-performance (COP) reading against the "
-        "When2Heat Germany seasonal baseline to flag a unit likely to need attention "
-        "before anyone reports a fault. See mvp_documentation.md for the threshold "
-        "assumptions this uses."
-    )
-
-    if baseline_df is None:
-        st.error("Could not load the COP baseline dataset.")
-    else:
-        col1, col2, col3 = st.columns(3)
-        profile = col1.selectbox(
-            "Profile",
-            options=list(data_loader.PROFILE_LABELS.keys()),
-            format_func=lambda k: data_loader.PROFILE_LABELS[k],
+    with tab_triage:
+        st.caption(
+            "An installer enters a fault code or symptom. The copilot classifies it as a "
+            "hardware fault, a HEMS connectivity/pairing issue, or an installer/commissioning "
+            "error, and returns fix guidance or an escalation route."
         )
-        month = col2.selectbox("Month", options=list(range(1, 13)), format_func=lambda m: calendar.month_name[m])
-        observed = col3.number_input("Observed COP reading", min_value=0.1, max_value=10.0, value=2.5, step=0.1)
 
-        st.line_chart(baseline_df[profile], height=220)
-        st.caption(f"Seasonal baseline for {data_loader.PROFILE_LABELS[profile]} — When2Heat Germany subset.")
+        selected_model = st.selectbox(
+            "Select a heat pump",
+            MODEL_OPTIONS,
+            help=(
+                "Optional. Sharpens the AI's answer and lets Chleo's team see fault trends "
+                "by model over time — it doesn't currently filter which fault codes are "
+                "recognized, since today's manual knowledge base isn't split per model."
+            ),
+        )
 
-        if st.button("Evaluate reading"):
-            expected = float(baseline_df.loc[month, profile])
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+        if "pending_prompt" not in st.session_state:
+            st.session_state.pending_prompt = None
+
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]):
+                if msg["role"] == "user":
+                    st.write(msg["content"])
+                else:
+                    render_assistant_card(msg)
+
+        # Read the incoming prompt (typed, or from an example-button click
+        # below) and process it *before* deciding whether to show the empty
+        # state — so a clicked example's answer never renders on the same
+        # pass as the "get started" buttons above it. See the button loop's
+        # comment below for why the buttons are defined after this block.
+        prompt = st.chat_input("Describe the fault or paste a fault code, e.g. 'F532 low flow rate'…")
+        if st.session_state.pending_prompt:
+            prompt = st.session_state.pending_prompt
+            st.session_state.pending_prompt = None
+        if prompt:
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.write(prompt)
+
+            with st.chat_message("assistant"):
+                try:
+                    with st.spinner("Classifying…"):
+                        result = pipeline.fault_triage_turn(prompt, model=selected_model)
+                except Exception as exc:  # noqa: BLE001 — last-resort guard so the chat never hard-crashes
+                    st.error(f"Something went wrong processing that message: {exc}")
+                    result = {
+                        "role": "assistant",
+                        "category": "hardware_fault",
+                        "message": "An internal error occurred — escalating to a senior technician as a safe default.",
+                        "source": "llm",
+                        "confidence": 0.0,
+                        "manual_sources": [],
+                        "ai_generated": False,
+                        "model": selected_model,
+                    }
+                result["role"] = "assistant"
+                render_assistant_card(result)
+            st.session_state.messages.append(result)
+
+        # Empty-state guidance: the chat box above is pinned to the bottom of
+        # the screen by Streamlit regardless of where st.chat_input() is called
+        # in the script (that's not something this app can move), so on first
+        # load the page looked like empty dead space between here and the
+        # input. Clickable example prompts fill that space and double as
+        # onboarding — click one, or type your own below. Same pattern
+        # ChatGPT/Claude use on a blank chat. Checked *after* processing above,
+        # so a just-clicked example's result (now in session_state.messages)
+        # correctly hides these buttons on this same render pass, not just
+        # the next one — clicking still triggers an immediate rerun via
+        # st.rerun() so the result shows right away rather than needing a
+        # second interaction to flush the pending click.
+        if not st.session_state.messages:
+            st.markdown("#### 💬 Ask about a fault code or symptom to get started")
+            st.caption("Tap an example below, or type your own question in the box at the bottom of the screen.")
+            example_prompts = [
+                "Low refrigerant pressure alarm, error code E4",
+                "Fault code F532 showing, low flow rate",
+                "No comms from the outdoor unit, controller not responding",
+                "Smart meter gateway will not pair with the control unit",
+            ]
+            ex_col1, ex_col2 = st.columns(2)
+            for i, example in enumerate(example_prompts):
+                target_col = ex_col1 if i % 2 == 0 else ex_col2
+                if target_col.button(example, use_container_width=True, key=f"example_{i}"):
+                    st.session_state.pending_prompt = example
+                    st.rerun()
+
+    # -------------------------------------------------------------------
+    # Tab 2 — Commissioning-Completeness Checker (preventive)
+    # -------------------------------------------------------------------
+
+    with tab_checklist:
+        st.caption(
+            "Confirms required commissioning steps were actually completed before an installer "
+            "signs off a job — catching the problem before it becomes a fault ticket. Each item "
+            "cites the fault code it would otherwise surface as later."
+        )
+
+        with st.form("checklist_form"):
+            col1, col2 = st.columns(2)
+            model = col1.text_input("Model", value="TF-12")
+            firmware = col2.text_input("Firmware version", value="3.0.0")
+
+            responses = {}
+            for item in checklist.CHECKLIST_ITEMS:
+                help_text = f"Unconfirmed → risks surfacing as {item['manual_ref']}" if item["manual_ref"] else None
+                label = item["label"] + ("" if item["required"] else " (optional)")
+                responses[item["key"]] = st.checkbox(label, help=help_text)
+
+            submitted = st.form_submit_button("Evaluate")
+
+        if submitted:
             try:
                 with st.spinner("Evaluating…"):
-                    turn = pipeline.predictive_turn(
-                        data_loader.PROFILE_LABELS[profile], calendar.month_name[month], expected, observed
-                    )
-                result, alert = turn["prediction"], turn["alert"]
+                    turn = pipeline.commissioning_turn(model, firmware, responses)
+                result, summary = turn["checklist"], turn["summary"]
             except Exception as exc:  # noqa: BLE001
-                st.error(f"Could not evaluate this reading: {exc}")
-                result, alert = None, None
+                st.error(f"Could not evaluate this checklist: {exc}")
+                result, summary = None, None
 
             if result:
-                rcol1, rcol2, rcol3 = st.columns(3)
-                rcol1.metric("Expected COP", result["expected_cop"])
-                rcol2.metric("Observed COP", result["observed_cop"])
-                rcol3.metric("Deviation", f"{result['deviation_pct']}%")
-                st.markdown(f"### {predictive.SEVERITY_LABELS[result['severity']]}")
+                col1, col2 = st.columns(2)
+                col1.metric("Completeness", f"{result['completeness_pct']}%")
+                col2.metric("Sign-off ready", "Yes" if result["sign_off_ready"] else "No")
 
-            if alert:
-                st.info(alert["note"])
-                if not alert["ai_generated"]:
+                if result["sign_off_ready"]:
+                    st.success("All required steps confirmed. Ready to sign off.")
+                else:
+                    st.error(f"{len(result['missing_required'])} required step(s) outstanding:")
+                    for item in result["missing_required"]:
+                        ref = f" — risks surfacing as **{item['manual_ref']}**" if item["manual_ref"] else ""
+                        st.write(f"- {item['label']}{ref}")
+
+            if summary:
+                st.info(summary["summary"])
+                if not summary["ai_generated"]:
                     st.caption(
-                        "⚠️ Deterministic note (no live model response) — add OPENAI_API_KEY for an AI-generated one."
+                        "⚠️ Deterministic summary (no live model response) — add OPENAI_API_KEY for an AI-generated one."
                     )
 
+    # -------------------------------------------------------------------
+    # Tab 3 — COP-Drop Predictive Early-Warning (single unit)
+    # -------------------------------------------------------------------
+
+    with tab_predictive:
+        st.caption(
+            "Compares a reported coefficient-of-performance (COP) reading against the "
+            "When2Heat Germany seasonal baseline to flag a unit likely to need attention "
+            "before anyone reports a fault. See mvp_documentation.md for the threshold "
+            "assumptions this uses."
+        )
+
+        if baseline_df is None:
+            st.error("Could not load the COP baseline dataset.")
+        else:
+            col1, col2, col3 = st.columns(3)
+            profile = col1.selectbox(
+                "Profile",
+                options=list(data_loader.PROFILE_LABELS.keys()),
+                format_func=lambda k: data_loader.PROFILE_LABELS[k],
+            )
+            month = col2.selectbox("Month", options=list(range(1, 13)), format_func=lambda m: calendar.month_name[m])
+            observed = col3.number_input("Observed COP reading", min_value=0.1, max_value=10.0, value=2.5, step=0.1)
+
+            st.line_chart(baseline_df[profile], height=220)
+            st.caption(f"Seasonal baseline for {data_loader.PROFILE_LABELS[profile]} — When2Heat Germany subset.")
+
+            if st.button("Evaluate reading"):
+                expected = float(baseline_df.loc[month, profile])
+                try:
+                    with st.spinner("Evaluating…"):
+                        turn = pipeline.predictive_turn(
+                            data_loader.PROFILE_LABELS[profile], calendar.month_name[month], expected, observed
+                        )
+                    result, alert = turn["prediction"], turn["alert"]
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Could not evaluate this reading: {exc}")
+                    result, alert = None, None
+
+                if result:
+                    rcol1, rcol2, rcol3 = st.columns(3)
+                    rcol1.metric("Expected COP", result["expected_cop"])
+                    rcol2.metric("Observed COP", result["observed_cop"])
+                    rcol3.metric("Deviation", f"{result['deviation_pct']}%")
+                    st.markdown(f"### {predictive.SEVERITY_LABELS[result['severity']]}")
+
+                if alert:
+                    st.info(alert["note"])
+                    if not alert["ai_generated"]:
+                        st.caption(
+                            "⚠️ Deterministic note (no live model response) — add OPENAI_API_KEY for an AI-generated one."
+                        )
+
 
 # ---------------------------------------------------------------------------
-# Tab 4 — Installed Fleet Overview (demo: all 3 predictive flags at once)
+# Page: Installed Fleet Overview (demo: all 3 predictive flags at once)
 # ---------------------------------------------------------------------------
 
-with tab_fleet:
+elif st.session_state.active_page == "Installed Fleet Overview":
+    st.header("🏘️ Installed Fleet Overview")
     st.caption(
-        "The same COP-Drop Early-Warning check from the previous tab, run across an entire installed "
-        "fleet at once — a portfolio view built for demo purposes so it's obvious at a glance what this "
-        "use case catches. This is a small, hand-curated synthetic table, not real telemetry — see "
-        "data/installed_fleet_documentation.md."
+        "The same COP-Drop Early-Warning check from the Dashboard's predictive tab, run across an entire "
+        "installed fleet at once — a portfolio view built for demo purposes so it's obvious at a glance "
+        "what this use case catches. This is a small, hand-curated synthetic table, not real telemetry — "
+        "see data/installed_fleet_documentation.md."
     )
 
     if fleet_evaluated is None:
@@ -485,3 +496,33 @@ with tab_fleet:
                     st.caption(
                         "⚠️ Deterministic summary (no live model response) — add OPENAI_API_KEY for an AI-generated one."
                     )
+
+
+# ---------------------------------------------------------------------------
+# Page: System status — technical configuration status, its own page now
+# (was inline sidebar content; pulled out so the sidebar menu is just
+# navigation, and this is read like any other page).
+# ---------------------------------------------------------------------------
+
+else:
+    st.header("⚙️ System status")
+    st.caption("Technical configuration status for the AI capabilities behind this app.")
+
+    for label, ok, ok_icon, bad_icon in [
+        ("AI classification", llm.is_configured(), "🟢", "🔴"),
+        ("Knowledge-base search", rag.is_configured(), "🟢", "🟡"),
+        ("Interaction monitoring", tracing.is_configured(), "🟢", "🟡"),
+    ]:
+        status_label_col, status_icon_col = st.columns([4, 1])
+        status_label_col.write(label)
+        status_icon_col.write(ok_icon if ok else bad_icon)
+
+    st.divider()
+    if not llm.is_configured():
+        st.caption("Add OPENAI_API_KEY in .env for live AI responses.")
+    if not rag.is_configured():
+        st.caption("Add PINECONE_API_KEY in .env for semantic search (falls back to keyword match otherwise).")
+    if not tracing.is_configured():
+        st.caption("Add LANGSMITH_API_KEY in .env to trace every interaction.")
+    if llm.is_configured() and rag.is_configured() and tracing.is_configured():
+        st.success("All AI capabilities are fully configured.")

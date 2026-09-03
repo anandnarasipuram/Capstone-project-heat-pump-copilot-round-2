@@ -1,31 +1,33 @@
 # MVP Documentation — Heat Pump Copilot
 
 > Round 2 required deliverable: *"a functional product beyond the POC... the core AI capability has to actually run."*
-> Builds directly on the Round 1 n8n POC — see [../poc/poc_documentation.md](../poc/poc_documentation.md) — and on all three use-case candidates scoped in [../research/use_cases.md](../research/use_cases.md), which this MVP implements as four tabs of one small app rather than three separate half-built products (the 4th, Installed Fleet Overview, is a portfolio view of the 3rd — see below).
+> Builds directly on the Round 1 n8n POC — see [../poc/poc_documentation.md](../poc/poc_documentation.md) — and on all three use-case candidates scoped in [../research/use_cases.md](../research/use_cases.md), which this MVP implements as one small app with a real 3-page menu rather than three separate half-built products (Installed Fleet Overview is a portfolio view of the predictive candidate — see below).
 
 ## What this is
 
 A single Streamlit app (`app.py`), run from one `streamlit run` command. Layout:
 
-- **Header** — title, and two matching icon-only buttons side by side: 🔔 (opens a dropdown of the Installed Fleet Overview's current High/Medium/Low alert counts and which units they are — computed once and shared with Tab 4, not recomputed) and 👤 (opens a small "Chleo · demo profile" popover). There's no real authentication in this MVP (stated plainly, not implied) — the profile icon is a UI placeholder for where a real user identity would sit once the app has one.
-- **Browser-style tabs** for navigation between the four modes (not a sidebar radio) — click a tab the way you'd click a browser tab.
-- **Collapsible sidebar menu** — collapsed by default (Streamlit's native hamburger-style `«`/`»` toggle at the top-left opens/closes it; `initial_sidebar_state="collapsed"` in `st.set_page_config`). Contains only a "🏠 Dashboard" label and "⚙️ System status" (no nested expander — status is listed directly, label left / indicator right). No navigation lives here; that's the tab bar's job.
-- **Human-in-the-loop notice** — pinned to the bottom of the browser window via CSS (`position: fixed`), visible on every tab at all times regardless of whether the sidebar menu is open, rather than tucked inside a menu someone might never open. Same Art. 50 EU AI Act transparency disclosure as before (see [../compliance/eu_ai_act_compliance.md](../compliance/eu_ai_act_compliance.md)) — moved for visibility, not reworded.
+- **Header** — title, and two matching icon-only buttons side by side: 🔔 (opens a dropdown of the Installed Fleet Overview page's current High/Medium/Low alert counts and which units they are — computed once and shared with that page, not recomputed) and 👤 (opens a small "Chleo · demo profile" popover). There's no real authentication in this MVP (stated plainly, not implied) — the profile icon is a UI placeholder for where a real user identity would sit once the app has one.
+- **Collapsible sidebar menu** — collapsed by default (Streamlit's native hamburger-style `«`/`»` toggle at the top-left opens/closes it; `initial_sidebar_state="collapsed"` in `st.set_page_config`). A real page router (`st.session_state.active_page`), not decorative labels — 3 selectable buttons, the current page shown filled (`type="primary"`):
+  - **🏠 Dashboard** (default) — the 3 operational tools, as browser-style tabs
+  - **🏘️ Installed Fleet Overview** — its own full page, not nested in the tab bar
+  - **⚙️ System status** — its own full page (label left / indicator right per row, no nested expander)
+- **Human-in-the-loop notice** — pinned to the bottom of the browser window via CSS (`position: fixed`), visible on every page at all times regardless of menu state, rather than tucked inside a menu someone might never open. Same Art. 50 EU AI Act transparency disclosure as before (see [../compliance/eu_ai_act_compliance.md](../compliance/eu_ai_act_compliance.md)) — moved for visibility, not reworded.
 
-The four tabs:
+The Dashboard page's 3 tabs, plus the Installed Fleet Overview page:
 
-| Mode | Use case (from [research/use_cases.md](../research/use_cases.md)) | Lifecycle stage | Status |
-|---|---|---|---|
-| 🩺 **Fault Triage Copilot** | Candidate #1 — the Round 1 flagship | Reactive | Full RAG + LLM pipeline, chat UI |
-| ✅ **Commissioning Checker** | Candidate #2 | Preventive | Deterministic checklist + LLM sign-off summary |
-| 📉 **COP-Drop Early-Warning** | Candidate #3 | Predictive | Statistical baseline comparison + LLM alert note, single unit |
-| 🏠 **Installed Fleet Overview** | Candidate #3, portfolio view | Predictive | Same mechanism as above, run across a demo fleet at once — see below |
+| Mode | Use case (from [research/use_cases.md](../research/use_cases.md)) | Lifecycle stage | Where | Status |
+|---|---|---|---|---|
+| 🩺 **Fault Triage Copilot** | Candidate #1 — the Round 1 flagship | Reactive | Dashboard, tab 1 | Full RAG + LLM pipeline, chat UI |
+| ✅ **Commissioning Checker** | Candidate #2 | Preventive | Dashboard, tab 2 | Deterministic checklist + LLM sign-off summary |
+| 📉 **COP-Drop Early-Warning** | Candidate #3 | Predictive | Dashboard, tab 3 | Statistical baseline comparison + LLM alert note, single unit |
+| 🏘️ **Installed Fleet Overview** | Candidate #3, portfolio view | Predictive | Its own menu page | Same mechanism as above, run across a demo fleet at once — see below |
 
 **The core AI capability that has to "actually run"** is Mode 1's pipeline: fault-code lookup → **Pinecone vector search over OpenAI embeddings of the manual knowledge base** → **OpenAI chat-completion classification, grounded in whatever the retrieval step found**. This is the concrete Round 2 upgrade the POC's own docs called for (see [poc/poc_documentation.md](../poc/poc_documentation.md), "Language" section): the POC's keyword match is replaced by real multilingual embeddings, so a German-phrased symptom retrieves the right English-language manual excerpt on semantic similarity, not exact keyword overlap.
 
 Modes 2–4 reuse the same OpenAI classification layer (`core/llm.py`) to turn a deterministic result into a natural-language summary/alert — one shared AI capability, four applications of it, not four separate models.
 
-**Why a 4th tab, not just 3 modes:** the single-unit 📉 tab is the honest, technical demonstration of the predictive mechanism; the 🏠 tab exists purely to make that mechanism *legible to a non-technical audience* — a business decision-maker grasps "3 of 18 units need attention now" in one glance far faster than watching one slider move. Same underlying logic (`core/predictive.py` via `core/fleet.py`), presented as a portfolio instead of a single reading.
+**Why a separate menu page, not a 4th tab:** the single-unit 📉 tab is the honest, technical demonstration of the predictive mechanism; the 🏘️ Installed Fleet Overview page exists purely to make that mechanism *legible to a non-technical audience* — a business decision-maker grasps "3 of 18 units need attention now" in one glance far faster than watching one slider move. Same underlying logic (`core/predictive.py` via `core/fleet.py`), presented as a portfolio instead of a single reading. It's a full page rather than a 4th tab specifically so it can also be reached directly from the sidebar menu, without first landing on the Dashboard.
 
 ## Architecture
 
@@ -162,7 +164,7 @@ cp .env.example .env
 ```bash
 streamlit run app.py
 ```
-Open the app, stay on 🩺 Fault Triage Copilot, and try `Low refrigerant pressure alarm, error code E4` — it resolves instantly via the deterministic lookup table, no key needed. Modes 2–4 also load and compute their deterministic results (checklist score, COP deviation, seasonal chart, the full fleet table + counts) with zero keys; only the AI-generated narrative text falls back to a clearly-labeled template (see "Error handling" below).
+Open the app, stay on the Dashboard's 🩺 Fault Triage Copilot tab, and try `Low refrigerant pressure alarm, error code E4` — it resolves instantly via the deterministic lookup table, no key needed. The other 2 tabs and the Installed Fleet Overview page also load and compute their deterministic results (checklist score, COP deviation, seasonal chart, the full fleet table + counts) with zero keys; only the AI-generated narrative text falls back to a clearly-labeled template (see "Error handling" below).
 
 **Full AI capability** (what Round 2 actually asks for):
 1. Fill in `OPENAI_API_KEY` in `.env`.
@@ -206,7 +208,7 @@ python -m pytest tests/ -v
 - **Manual corpus is small and representative, not Chleo's own documentation** — same limitation as the POC (16 entries total: 8 Vaillant fault codes + 8 keyword-guide entries), see [../data/manuals/README.md](../data/manuals/README.md).
 - **COP-drop thresholds (10%/20% deviation) are a stated assumption**, not calibrated against real fault outcomes — no public dataset pairs COP deviation with confirmed faults (see [../research/opportunities_risks.md](../research/opportunities_risks.md)); a real deployment would tune these against the manufacturer's own service-ticket history once available.
 - **The Commissioning Checker's item list is illustrative** (7 items derived from the fault codes already in the knowledge base), not a validated installer sign-off form — a production version would be built with the manufacturer's QA team.
-- **The Installed Fleet Overview tab is a demo table, not live telemetry** — 18 hand-curated units, deliberately spanning all 3 flags so the mechanism is visible in one glance (see [../data/installed_fleet_documentation.md](../data/installed_fleet_documentation.md)). A production version replaces `data/synthetic_installed_fleet.csv` with a real feed keyed to actual installed units, once that telemetry exists.
+- **The Installed Fleet Overview page is a demo table, not live telemetry** — 18 hand-curated units, deliberately spanning all 3 flags so the mechanism is visible in one glance (see [../data/installed_fleet_documentation.md](../data/installed_fleet_documentation.md)). A production version replaces `data/synthetic_installed_fleet.csv` with a real feed keyed to actual installed units, once that telemetry exists.
 - **Single-session chat history** — `st.session_state` only, nothing persisted between runs or shared across installers. A pilot would need a lightweight backing store (even just a CSV/SQLite log) for the false-hardware-fault and first-visit-fix-rate metrics the Round 1 dashboard tracks.
 - **No authentication** — anyone who can reach the running app can use it. Fine for an instructor demo or a single-installer trial; not fine for a multi-tenant pilot (see [../compliance/gdpr_documentation.md](../compliance/gdpr_documentation.md) for how this changes once real installer identities are involved).
 - **Pinecone/OpenAI cost is per-query**, unbounded by this app — a production deployment would add basic rate limiting, matching the POC's own stated gap ("no retry/rate-limit handling on the OpenAI HTTP Request node").
