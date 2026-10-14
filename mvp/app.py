@@ -43,6 +43,28 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv()
 
+
+def _export_streamlit_secrets() -> None:
+    """Streamlit Community Cloud only exports *top-level* secrets as env
+    vars — a key pasted under a [section] header never reaches os.environ,
+    and core/ reads keys from os.environ only. Copy them across (top-level
+    and one section deep) without overriding anything already set. Must
+    run before core/ is imported: core/tracing.py reads its env at import."""
+    try:
+        items = dict(st.secrets)
+    except Exception:  # noqa: BLE001 — no secrets.toml locally is normal
+        return
+    for key, value in items.items():
+        if isinstance(value, dict) or hasattr(value, "items"):
+            for sub_key, sub_value in dict(value).items():
+                if isinstance(sub_value, (str, int, float)):
+                    os.environ.setdefault(str(sub_key).upper(), str(sub_value).strip())
+        elif isinstance(value, (str, int, float)):
+            os.environ.setdefault(str(key).upper(), str(value).strip())
+
+
+_export_streamlit_secrets()
+
 from core import checklist, data_loader, fleet, judge, llm, pipeline, predictive, rag, tracing  # noqa: E402
 
 st.set_page_config(
