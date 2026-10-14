@@ -1,4 +1,4 @@
-"""OpenAI classification/generation layer — the "core AI capability" the
+"""Cohere classification/generation layer — the "core AI capability" the
 Round 2 brief requires to actually run. Three call sites, one shared
 JSON-mode helper:
 
@@ -26,9 +26,9 @@ import json
 import os
 from typing import Optional
 
-from .tracing import traceable, wrap_openai
+from .tracing import traceable
 
-DEFAULT_CHAT_MODEL = "gpt-4o-mini"
+DEFAULT_CHAT_MODEL = "command-a-03-2025"
 
 CLASSIFICATION_SYSTEM_PROMPT = """You are a triage assistant for a heat pump manufacturer's field installers.
 Classify the installer's reported symptom into exactly one category:
@@ -61,15 +61,40 @@ class LlmError(Exception):
 
 
 def _get_client():
-    from openai import OpenAI
+    import cohere
 
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    api_key = os.environ.get("COHERE_API_KEY", "").strip()
     if not api_key:
-        raise LlmError("OPENAI_API_KEY is not set — see mvp/.env.example.")
-    # wrap_openai only actually traces when LangSmith tracing is enabled
-    # (see core/tracing.py) — with no LANGSMITH_API_KEY it wraps the
-    # client but makes no LangSmith network calls, so this is always safe.
-    return wrap_openai(OpenAI(api_key=api_key))
+        raise LlmError("COHERE_API_KEY is not set — see mvp/.env.example.")
+    return cohere.ClientV2(api_key=api_key)
+
+
+@traceable(name="cohere_chat", run_type="llm", metadata={"ls_provider": "cohere"})
+def cohere_chat(messages: list[dict], model: str, temperature: Optional[float] = None) -> dict:
+    """One Cohere v2 Chat call in JSON mode, logged to LangSmith as an LLM
+    run (exact prompt, raw output, latency, token usage). LangSmith has no
+    Cohere client wrapper like wrap_openai, so this decorator is what makes
+    the raw call visible — nested under whichever public function below
+    (or core/judge.py) called it. Raises on any config/API failure."""
+    kwargs = {"temperature": temperature} if temperature is not None else {}
+    response = _get_client().chat(
+        model=model,
+        response_format={"type": "json_object"},
+        messages=messages,
+        **kwargs,
+    )
+    tokens = response.usage.tokens if response.usage else None
+    input_tokens = int(tokens.input_tokens or 0) if tokens else 0
+    output_tokens = int(tokens.output_tokens or 0) if tokens else 0
+    # OpenAI-style "choices" shape so LangSmith renders it as a chat reply.
+    return {
+        "choices": [{"message": {"role": "assistant", "content": response.message.content[0].text}}],
+        "usage_metadata": {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": input_tokens + output_tokens,
+        },
+    }
 
 
 def _chat_json(system_prompt: str, user_prompt: str) -> Optional[dict]:
@@ -78,35 +103,32 @@ def _chat_json(system_prompt: str, user_prompt: str) -> Optional[dict]:
     therefore always returns a dict with `ai_generated` set; callers
     never need to catch LlmError themselves. is_configured() below is
     how app.py shows a setup banner instead of silently degrading."""
-    model = os.environ.get("OPENAI_CHAT_MODEL", DEFAULT_CHAT_MODEL)
+    model = os.environ.get("COHERE_CHAT_MODEL", DEFAULT_CHAT_MODEL)
     try:
-        client = _get_client()
-        response = client.chat.completions.create(
-            model=model,
-            response_format={"type": "json_object"},
-            # temperature=0 — this was previously unset, defaulting to
-            # OpenAI's temperature=1.0. That's exactly what caused a real,
-            # reported bug: language selection (and likely category
-            # confidence) varying run to run on the *same* input — one
-            # English symptom got a German reply, another got Spanish,
-            # on back-to-back calls with no prompt change. Classification
-            # is not a creative task; it should be as deterministic as a
-            # non-reasoning chat model allows.
-            temperature=0.2,
-            messages=[
+        response = cohere_chat(
+            [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            model=model,
+            # Low temperature — leaving it at the provider default is exactly
+            # what caused a real, reported bug: language selection (and
+            # likely category confidence) varying run to run on the *same*
+            # input — one English symptom got a German reply, another got
+            # Spanish, on back-to-back calls with no prompt change.
+            # Classification is not a creative task; it should be as
+            # deterministic as a non-reasoning chat model allows.
+            temperature=0.2,
         )
-        return json.loads(response.choices[0].message.content)
+        return json.loads(response["choices"][0]["message"]["content"])
     except Exception:  # noqa: BLE001 — any config/API/parse failure, handled by each call site's safe default
         return None
 
 
 def is_configured() -> bool:
     """Cheap presence check (not a live API call) for the sidebar status
-    indicator — does OPENAI_API_KEY look set at all."""
-    return bool(os.environ.get("OPENAI_API_KEY", "").strip())
+    indicator — does COHERE_API_KEY look set at all."""
+    return bool(os.environ.get("COHERE_API_KEY", "").strip())
 
 
 @traceable(name="classify_symptom", tags=["heat-pump-copilot", "mode:fault_triage"])

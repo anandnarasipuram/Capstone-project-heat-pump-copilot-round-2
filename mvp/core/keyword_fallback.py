@@ -1,6 +1,6 @@
 """Zero-dependency keyword retrieval — ported 1:1 from the n8n POC's
 "Retrieve Manual Context" node (see poc/poc_documentation.md's "Manual
-grounding" section). Used only as a fallback when Pinecone/OpenAI
+grounding" section). Used only as a fallback when Pinecone/Cohere
 embeddings aren't configured (missing API keys), so the MVP still
 demos end-to-end with no cloud setup at all — same zero-key smoke-test
 story as the POC's fault-code lookup path.

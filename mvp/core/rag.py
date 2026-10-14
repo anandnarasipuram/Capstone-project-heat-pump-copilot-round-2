@@ -4,11 +4,11 @@ upgrade the POC's own docs flagged as next (poc/poc_documentation.md,
 ... a German query then retrieves the right English-language manual
 excerpt on semantic similarity, not exact keyword overlap").
 
-Uses OpenAI embeddings (text-embedding-3-small — multilingual) + Pinecone
+Uses Cohere embeddings (embed-multilingual-v3.0) + Pinecone
 serverless as the vector store, via LangChain. Index is built once by
 scripts/ingest_manuals.py; this module only queries it.
 
-Every public function fails soft: if Pinecone/OpenAI aren't configured or
+Every public function fails soft: if Pinecone/Cohere aren't configured or
 a call errors, callers get a clear RagUnavailable with a human-readable
 reason, and app.py falls back to core/keyword_fallback.retrieve(). The
 core AI capability is real when keys are present — this is the
@@ -20,13 +20,15 @@ import os
 
 from .tracing import traceable
 
-DEFAULT_INDEX_NAME = "heat-pump-copilot-manuals"
-DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMENSION = 1536  # text-embedding-3-small's fixed output size
+# New index name: the original "heat-pump-copilot-manuals" index holds
+# 1536-dim OpenAI vectors, which Cohere query embeddings can't search.
+DEFAULT_INDEX_NAME = "heat-pump-copilot-manuals-cohere"
+DEFAULT_EMBEDDING_MODEL = "embed-multilingual-v3.0"
+EMBEDDING_DIMENSION = 1024  # embed-multilingual-v3.0's fixed output size
 
 
 class RagUnavailable(Exception):
-    """Raised when Pinecone/OpenAI aren't configured, or the index/query
+    """Raised when Pinecone/Cohere aren't configured, or the index/query
     call fails — always carries a human-readable reason for the UI."""
 
 
@@ -38,11 +40,11 @@ def _require_env(name: str) -> str:
 
 
 def get_embeddings():
-    from langchain_openai import OpenAIEmbeddings
+    from langchain_cohere import CohereEmbeddings
 
-    api_key = _require_env("OPENAI_API_KEY")
-    model = os.environ.get("OPENAI_EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL)
-    return OpenAIEmbeddings(model=model, api_key=api_key)
+    api_key = _require_env("COHERE_API_KEY")
+    model = os.environ.get("COHERE_EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL)
+    return CohereEmbeddings(model=model, cohere_api_key=api_key)
 
 
 def get_pinecone_client():
@@ -88,9 +90,9 @@ def get_vectorstore():
 
 def is_configured() -> bool:
     """Cheap presence check (not a live API/Pinecone call) for the sidebar
-    status indicator — do PINECONE_API_KEY and OPENAI_API_KEY look set."""
+    status indicator — do PINECONE_API_KEY and COHERE_API_KEY look set."""
     return bool(os.environ.get("PINECONE_API_KEY", "").strip()) and bool(
-        os.environ.get("OPENAI_API_KEY", "").strip()
+        os.environ.get("COHERE_API_KEY", "").strip()
     )
 
 
@@ -104,8 +106,8 @@ def retrieve_manual_context(query: str, k: int = 3) -> tuple[list[str], list[str
         results = vectorstore.similarity_search(query, k=k)
     except RagUnavailable:
         raise
-    except Exception as exc:  # noqa: BLE001 — any Pinecone/OpenAI failure, surfaced not swallowed
-        raise RagUnavailable(f"Pinecone/OpenAI retrieval failed: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001 — any Pinecone/Cohere failure, surfaced not swallowed
+        raise RagUnavailable(f"Pinecone/Cohere retrieval failed: {exc}") from exc
 
     excerpts = [doc.page_content for doc in results]
     sources = [doc.metadata.get("source", "manual knowledge base") for doc in results]

@@ -216,7 +216,7 @@ streamlit run app.py
 Open the app, stay on the Dashboard's 🩺 Fault Triage Copilot tab, and try `Low refrigerant pressure alarm, error code E4` — it resolves instantly via the deterministic lookup table, no key needed. The other 2 tabs and the Installed Fleet Overview page also load and compute their deterministic results (checklist score, COP deviation, seasonal chart, the full fleet table + counts) with zero keys; only the AI-generated narrative text falls back to a clearly-labeled template (see "Error handling" below).
 
 **Full AI capability** (what Round 2 actually asks for):
-1. Fill in `OPENAI_API_KEY` in `.env`.
+1. Fill in `COHERE_API_KEY` in `.env`.
 2. Fill in `PINECONE_API_KEY` in `.env` (free tier is sufficient for this manual corpus).
 3. One-time ingestion — embeds the 16 manual entries in `data/manuals/*.json` and upserts them into a new Pinecone serverless index:
    ```bash
@@ -245,7 +245,7 @@ Also set `temperature=0.2` on this call while debugging (was previously unset, d
 
 ## Error handling (what "basic error handling" means here)
 
-- **Every LLM/embedding/Pinecone call is wrapped and fails soft**, never crashes the app: `core/llm.py`'s three public functions always return a dict with an `ai_generated: bool` flag — `False` means the deterministic fallback text is showing, and the UI says so explicitly (`⚠️ Deterministic ... — add OPENAI_API_KEY ...`). This mirrors the POC's own safe-default principle in its "Parse OpenAI Response" node: *"if the model output can't be parsed, escalate rather than guess — never silently default to 'no action needed'."*
+- **Every LLM/embedding/Pinecone call is wrapped and fails soft**, never crashes the app: `core/llm.py`'s three public functions always return a dict with an `ai_generated: bool` flag — `False` means the deterministic fallback text is showing, and the UI says so explicitly (`⚠️ Deterministic ... — add COHERE_API_KEY ...`). This mirrors the POC's own safe-default principle in its "Parse OpenAI Response" node: *"if the model output can't be parsed, escalate rather than guess — never silently default to 'no action needed'."*
 - **Retrieval degrades in two steps, not one**: Pinecone RAG → keyword fallback → (worst case) no manual grounding at all, with the LLM classifying from the symptom text alone — exactly the POC's own documented worst case.
 - **A top-level `try/except` around each mode's main action** catches anything unanticipated (a malformed API response shape, a network timeout) and shows `st.error(...)` instead of an unhandled traceback.
 - **Config presence (not validity) is checked upfront** and shown in the sidebar as 🟢/🔴/🟡, so a missing key reads as an obvious status indicator rather than a mid-conversation crash.

@@ -97,7 +97,7 @@ def load_keyword_entries() -> list[dict]:
     """Loads the two keyword-tagged manual files (connectivity + safety)
     with their `keywords` lists intact, for core/keyword_fallback.py — the
     zero-dependency retrieval path ported from the n8n POC's "Retrieve
-    Manual Context" node, used when Pinecone/OpenAI embeddings aren't
+    Manual Context" node, used when Pinecone/Cohere embeddings aren't
     configured. See core/rag.py for the real embeddings-based upgrade."""
     entries: list[dict] = []
     for fname in ("connectivity_status_guide.json", "safety_device_reference.json"):

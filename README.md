@@ -29,7 +29,7 @@ Ironhack AI Capstone, Round 2: the consulting package + working MVP that builds 
 ├── poc/                             # Round 2-formatted POC docs (the Round 1 n8n workflow, re-documented)
 │   ├── poc_workflow.json
 │   └── poc_documentation.md
-├── mvp/                             # Round 2 — required working MVP (Streamlit + LangChain + Pinecone + OpenAI)
+├── mvp/                             # Round 2 — required working MVP (Streamlit + LangChain + Pinecone + Cohere)
 │   ├── app.py                        # 4-page menu: Dashboard · Installed Fleet Overview · Judge Reports · System status
 │   ├── core/                        # RAG, LLM, fault-lookup, checklist, predictive, judge — see mvp_documentation.md
 │   ├── scripts/ingest_manuals.py · scripts/judge_traces.py
@@ -59,7 +59,7 @@ Round 1 artifacts (dashboard, LangSmith sample) use the root `requirements.txt`.
 ```bash
 cd mvp
 pip install -r requirements.txt
-cp .env.example .env   # fill in OPENAI_API_KEY + PINECONE_API_KEY for full RAG
+cp .env.example .env   # fill in COHERE_API_KEY + PINECONE_API_KEY for full RAG
 streamlit run app.py   # runs with zero keys too — see mvp_documentation.md
 ```
 

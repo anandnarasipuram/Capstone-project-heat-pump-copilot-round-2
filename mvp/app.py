@@ -19,7 +19,7 @@ holds 3 tabs:
 The Dashboard's Tab 1 is the core, end-to-end AI capability this MVP
 exists to prove: fault-code lookup (deterministic, zero cost) →
 Pinecone RAG over the manual knowledge base (real embeddings, the
-Round 2 upgrade from the POC's keyword match) → OpenAI classification,
+Round 2 upgrade from the POC's keyword match) → Cohere classification,
 grounded in whatever the retrieval step found. See mvp_documentation.md
 for the full architecture, what "runs" means with vs. without API keys,
 and how to reproduce.
@@ -145,7 +145,7 @@ def render_assistant_card(result: dict) -> None:
     if result["source"] == "llm" and not result.get("ai_generated", True):
         st.warning(
             "⚠️ Live model call unavailable — showing a safe-default escalation instead of "
-            "a real classification. Check OPENAI_API_KEY in mvp/.env."
+            "a real classification. Check COHERE_API_KEY in mvp/.env (or the app's secrets)."
         )
 
     st.caption("_AI-suggested triage — confirm before acting._")
@@ -632,7 +632,7 @@ if st.session_state.active_page == "Dashboard":
                 st.info(summary["summary"])
                 if not summary["ai_generated"]:
                     st.caption(
-                        "⚠️ Deterministic summary (no live model response) — add OPENAI_API_KEY for an AI-generated one."
+                        "⚠️ Deterministic summary (no live model response) — add COHERE_API_KEY for an AI-generated one."
                     )
 
     # -------------------------------------------------------------------
@@ -685,7 +685,7 @@ if st.session_state.active_page == "Dashboard":
                     st.info(alert["note"])
                     if not alert["ai_generated"]:
                         st.caption(
-                            "⚠️ Deterministic note (no live model response) — add OPENAI_API_KEY for an AI-generated one."
+                            "⚠️ Deterministic note (no live model response) — add COHERE_API_KEY for an AI-generated one."
                         )
 
 
@@ -748,7 +748,7 @@ elif st.session_state.active_page == "Installed Fleet Overview":
                 st.info(summary["summary"])
                 if not summary["ai_generated"]:
                     st.caption(
-                        "⚠️ Deterministic summary (no live model response) — add OPENAI_API_KEY for an AI-generated one."
+                        "⚠️ Deterministic summary (no live model response) — add COHERE_API_KEY for an AI-generated one."
                     )
 
 
@@ -779,7 +779,7 @@ elif st.session_state.active_page == "Judge Reports":
     if not tracing.is_configured():
         st.warning("⚠️ LANGSMITH_API_KEY is not set — nothing to report. See System status.")
     elif not llm.is_configured():
-        st.warning("⚠️ OPENAI_API_KEY is not set — the judge itself is an LLM call. See System status.")
+        st.warning("⚠️ COHERE_API_KEY is not set — the judge itself is an LLM call. See System status.")
     else:
         project = os.environ.get("LANGSMITH_PROJECT", tracing.DEFAULT_PROJECT)
 
@@ -794,13 +794,11 @@ elif st.session_state.active_page == "Judge Reports":
             )
             if st.button("▶️ Run judge on recent traces", type="primary"):
                 from langsmith import Client
-                from openai import OpenAI
 
                 try:
                     with st.spinner(f"Judging up to {judge_limit} recent traces…"):
                         ls_client = Client()
-                        oai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-                        judge.run_judge_batch(ls_client, oai_client, project, int(judge_limit))
+                        judge.run_judge_batch(ls_client, project, int(judge_limit))
                         st.session_state.judge_report_rows = judge.fetch_judged_results(ls_client, project, run_limit=30)
                 except Exception as exc:  # noqa: BLE001
                     st.error(f"Judging failed: {exc}")
@@ -897,7 +895,7 @@ elif st.session_state.active_page == "System status":
 
     st.divider()
     if not llm.is_configured():
-        st.caption("Add OPENAI_API_KEY in .env for live AI responses.")
+        st.caption("Add COHERE_API_KEY in .env for live AI responses.")
     if not rag.is_configured():
         st.caption("Add PINECONE_API_KEY in .env for semantic search (falls back to keyword match otherwise).")
     if not tracing.is_configured():

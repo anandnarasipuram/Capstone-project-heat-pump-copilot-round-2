@@ -40,13 +40,12 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
 
-if not os.environ.get("OPENAI_API_KEY"):
-    sys.exit("Set OPENAI_API_KEY (in mvp/.env) before running this script.")
+if not os.environ.get("COHERE_API_KEY"):
+    sys.exit("Set COHERE_API_KEY (in mvp/.env) before running this script.")
 if not os.environ.get("LANGSMITH_API_KEY"):
     sys.exit("Set LANGSMITH_API_KEY (in mvp/.env) before running this script — nothing to judge without it.")
 
 from langsmith import Client  # noqa: E402
-from openai import OpenAI  # noqa: E402
 
 from core import judge  # noqa: E402
 
@@ -61,7 +60,6 @@ def main() -> None:
     args = parser.parse_args()
 
     ls_client = Client()
-    oai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     print(f"Fetching classify_symptom runs from project '{args.project}' ...")
     runs = judge.fetch_judgeable_runs(ls_client, args.project, args.limit)
@@ -77,7 +75,7 @@ def main() -> None:
     for i, run in enumerate(runs, start=1):
         symptom_preview = (run.inputs or {}).get("symptom", "")[:60]
         print(f"[{i}/{len(runs)}] {symptom_preview!r} ...")
-        row = judge.judge_and_record(ls_client, oai_client, run)
+        row = judge.judge_and_record(ls_client, run)
         if not row:
             print("  [judge call failed — skipped]")
             continue

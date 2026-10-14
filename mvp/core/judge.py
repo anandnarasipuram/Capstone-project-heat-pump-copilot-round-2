@@ -28,7 +28,7 @@ import json
 import os
 from typing import Optional
 
-JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "gpt-4o-mini")
+JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "command-a-03-2025")
 JUDGED_RUN_NAME = "classify_symptom"
 
 JUDGE_SYSTEM_PROMPT = """You are an impartial technical auditor reviewing a heat pump fault-triage AI's response, for a manufacturer's quality-assurance process. You are NOT the same system that produced the response — judge it independently and skeptically.
@@ -57,17 +57,18 @@ def build_user_prompt(run) -> str:
     )
 
 
-def judge_run(oai_client, run) -> Optional[dict]:
+def judge_run(run) -> Optional[dict]:
+    from .llm import cohere_chat
+
     try:
-        response = oai_client.chat.completions.create(
-            model=JUDGE_MODEL,
-            response_format={"type": "json_object"},
-            messages=[
+        response = cohere_chat(
+            [
                 {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
                 {"role": "user", "content": build_user_prompt(run)},
             ],
+            model=JUDGE_MODEL,
         )
-        return json.loads(response.choices[0].message.content)
+        return json.loads(response["choices"][0]["message"]["content"])
     except Exception:  # noqa: BLE001 — a bad judge call shouldn't kill the whole batch
         return None
 
@@ -100,13 +101,13 @@ def _row_from_run(run, correctness: Optional[float], hallucination: Optional[flo
     }
 
 
-def judge_and_record(ls_client, oai_client, run) -> Optional[dict]:
+def judge_and_record(ls_client, run) -> Optional[dict]:
     """Judges one run and posts both scores back to LangSmith as feedback
     on that run (Client.create_feedback) — so they show up next to the
     trace in LangSmith's own UI, not just in this app. Returns None (skip,
     don't count it) if the judge call itself failed to return usable
     JSON — same behavior the CLI script always had."""
-    verdict = judge_run(oai_client, run)
+    verdict = judge_run(run)
     if not verdict:
         return None
     correctness = float(verdict.get("correctness", 0.0))
@@ -117,7 +118,7 @@ def judge_and_record(ls_client, oai_client, run) -> Optional[dict]:
     return _row_from_run(run, correctness, hallucination, reasoning)
 
 
-def run_judge_batch(ls_client, oai_client, project: str, limit: int) -> list[dict]:
+def run_judge_batch(ls_client, project: str, limit: int) -> list[dict]:
     """High-level batch entry point — both scripts/judge_traces.py and the
     app's 'Run judge on recent traces' button call this and nothing lower
     level, so the two callers can never diverge on which runs get fetched
@@ -125,7 +126,7 @@ def run_judge_batch(ls_client, oai_client, project: str, limit: int) -> list[dic
     runs = fetch_judgeable_runs(ls_client, project, limit)
     results = []
     for run in runs:
-        row = judge_and_record(ls_client, oai_client, run)
+        row = judge_and_record(ls_client, run)
         if row:
             results.append(row)
     return results

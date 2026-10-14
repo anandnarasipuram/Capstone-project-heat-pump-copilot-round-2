@@ -6,7 +6,7 @@ after editing the manual JSON files).
 
 Usage:
     cd mvp
-    cp .env.example .env   # fill in OPENAI_API_KEY + PINECONE_API_KEY
+    cp .env.example .env   # fill in COHERE_API_KEY + PINECONE_API_KEY
     python scripts/ingest_manuals.py
 """
 from __future__ import annotations

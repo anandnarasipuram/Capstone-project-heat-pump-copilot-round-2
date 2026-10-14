@@ -3,7 +3,7 @@ network calls needed. Mirrors Round 1's testing philosophy for the n8n
 Code nodes (see poc/poc_documentation.md's "Worked examples" section):
 verify the deterministic parsing/scoring logic directly, and state
 plainly that the LLM/RAG path (core/llm.py, core/rag.py) needs live
-OpenAI + Pinecone keys to verify end-to-end — that part is confirmed by
+Cohere + Pinecone keys to verify end-to-end — that part is confirmed by
 running the app itself, not by this file.
 
 Run with: python -m pytest mvp/tests/ -v

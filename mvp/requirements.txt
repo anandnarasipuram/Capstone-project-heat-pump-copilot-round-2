@@ -6,12 +6,12 @@ pandas>=2.2
 altair>=5.0          # Judge Reports page charts (already a Streamlit dependency, pinned here since app.py imports it directly)
 python-dotenv>=1.0.1
 
-# Core AI capability: OpenAI classification + embeddings, via LangChain,
+# Core AI capability: Cohere classification + embeddings, via LangChain,
 # retrieved from a Pinecone serverless vector store.
-openai>=1.54.0
+cohere>=5.13.0
 langchain>=0.3.0
 langchain-core>=0.3.0
-langchain-openai>=0.2.0
+langchain-cohere>=0.4.0
 langchain-pinecone>=0.2.0
 pinecone>=5.0.0
 

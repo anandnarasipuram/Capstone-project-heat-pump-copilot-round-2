@@ -7,8 +7,7 @@ and predictive-alert interaction is inspectable in LangSmith — not just a
 handful of one-off script runs.
 
 Fails soft by design: with no LANGSMITH_API_KEY, tracing is simply off —
-`traceable` becomes a normal passthrough decorator, `wrap_openai` returns
-the client unwrapped, and nothing else in the app changes behavior or
+`traceable` becomes a normal passthrough decorator, and nothing else in the app changes behavior or
 errors. Import this module (not `langsmith` directly) everywhere tracing
 is used, so the env defaults below are always applied first.
 """
@@ -25,9 +24,8 @@ if os.environ.get("LANGSMITH_API_KEY", "").strip():
     os.environ.setdefault("LANGSMITH_PROJECT", DEFAULT_PROJECT)
 
 from langsmith import traceable  # noqa: E402 — import after the env defaults above are set
-from langsmith.wrappers import wrap_openai  # noqa: E402
 
-__all__ = ["traceable", "wrap_openai", "is_configured"]
+__all__ = ["traceable", "is_configured"]
 
 
 def is_configured() -> bool:
